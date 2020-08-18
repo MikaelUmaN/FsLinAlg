@@ -1,6 +1,7 @@
 namespace FsLinAlg.Test
 
 open Expecto
+open FsCheck
 
 open FsLinAlg.DataStructure
 
@@ -11,8 +12,9 @@ module DataStructure =
     [<Tests>]
     let properties =
         testList "Matrix creation consistency tests" [
-            testProperty "Array2D equivalence" <| fun (m: float[,]) ->
-                let mat = Matrix m
+            testProp "Array2D equivalence" <| fun (m: NormalFloat[,]) ->
+                let fm = m |> Array2D.map (fun v -> v.Get)
+                let mat = Matrix fm
                 let mm = mat.Data
-                m = mm
+                fm = mm
         ]

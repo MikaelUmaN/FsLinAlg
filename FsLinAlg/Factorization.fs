@@ -13,7 +13,7 @@ module Factorization =
         for k in 0..m-2 do
 
             // Pivoting
-            let i = U.[k.., k] |> Vector.findMaxIndex
+            let i = (U.[k.., k] |> Vector.map abs |> Vector.findMaxIndex) + k
             let up = U.[i, *]
             U.[i, *] <- U.[k, *]
             U.[k, *] <- up
@@ -27,9 +27,11 @@ module Factorization =
             P.[k, *] <- pp
 
             for j in k+1..m-1 do
-                L.[j, k] <- U.[j, k] / U.[k, k]
-                U.[j, k..m-1] <- U.[j, k..m-1] - L.[j, k]*U.[k, k..m-1]
-
+                if U.[k, k] = 0. then
+                     raise linDep
+                else
+                    L.[j, k] <- U.[j, k] / U.[k, k]
+                    U.[j, k..m-1] <- U.[j, k..m-1] - L.[j, k]*U.[k, k..m-1]
         P, L, U
 
     type Matrix with

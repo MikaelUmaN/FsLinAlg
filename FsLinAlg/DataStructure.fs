@@ -21,12 +21,12 @@ module DataStructure =
             with get(sr, er) =
                 let sr, er =
                     defaultArg sr 0,
-                    defaultArg er this.Length-1
+                    defaultArg er (this.Length-1)
                 data.[sr..er] |> Vector
             and set(sr, er) (x: Vector) =
                 let sr, er =
                     defaultArg sr 0,
-                    defaultArg er this.Length-1
+                    defaultArg er (this.Length-1)
                 data.[sr..er] <- x.Data
 
         /// Unary ops
@@ -56,6 +56,7 @@ module DataStructure =
         static member ( *+) (x: Vector, y: Vector) =
             Array.zip x.Data y.Data |> Array.sumBy (fun (a, b) -> a * b)
 
+        static member map f (v: Vector) = v.Data |> Array.map f |> Vector
         static member length (v: Vector) = v.Data |> Array.length
         static member max (v: Vector) = v.Data |> Array.max
         static member min (v: Vector) = v.Data |> Array.min
@@ -109,7 +110,7 @@ module DataStructure =
         /// Returns the length of the maximum dimension.
         static member maxDim (A: Matrix) = max A.M A.N
 
-        member this.Data = data
+        member _.Data = data
         
         member _.Item
             with get(row, column) =
@@ -121,43 +122,43 @@ module DataStructure =
         member this.GetSlice(sr, er, sc, ec) =
             let sr, er, sc, ec =
                 defaultArg sr 0,
-                defaultArg er this.M-1,
+                defaultArg er (this.M-1),
                 defaultArg sc 0,
-                defaultArg ec this.N-1
+                defaultArg ec (this.N-1)
             data.[sr..er, sc..ec] |> Matrix
             
         member this.SetSlice(sr, er, sc, ec, x: Matrix) =
             let sr, er, sc, ec =
                 defaultArg sr 0,
-                defaultArg er this.M-1,
+                defaultArg er (this.M-1),
                 defaultArg sc 0,
-                defaultArg ec this.N-1
+                defaultArg ec (this.N-1)
             data.[sr..er, sc..ec] <- x.Data
 
         /// Row vector slices.
         member this.GetSlice(r, sc, ec) =
             let sc, ec =
                 defaultArg sc 0,
-                defaultArg ec this.N-1
+                defaultArg ec (this.N-1)
             data.[r, sc..ec] |> Vector
 
         member this.SetSlice(r, sc, ec, x: Vector) =
             let sc, ec =
                 defaultArg sc 0,
-                defaultArg ec this.N-1
+                defaultArg ec (this.N-1)
             data.[r, sc..ec] <- x.Data
 
         /// Column vector slices.
         member this.GetSlice(sr, er, c) =
             let sr, er =
                 defaultArg sr 0,
-                defaultArg er this.M-1
+                defaultArg er (this.M-1)
             data.[sr..er, c] |> Vector
         
         member this.SetSlice(sr, er, c, x: Vector) =
             let sr, er =
                 defaultArg sr 0,
-                defaultArg er this.M-1
+                defaultArg er (this.M-1)
             data.[sr..er, c] <- x.Data
 
         /// Unary ops

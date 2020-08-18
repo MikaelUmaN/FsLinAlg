@@ -8,6 +8,7 @@
     <ProjectReference Include="..\FsLinAlg\FsLinAlg.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExpectoFsCheckfs.fs" />
     <Compile Include="DataStructure.fs" />
     <Compile Include="Factorization.fs" />
     <Compile Include="Program.fs" />

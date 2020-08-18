@@ -2,28 +2,31 @@ namespace FsLinAlg.Test
 
 open Expecto
 
+open FsLinAlg
 open FsLinAlg.DataStructure
 open FsLinAlg.Factorization
+open DataStructure
 
 module Factorization =
 
-    //let config = { FsCheckConfig.defaultConfig with maxTest = 10000 }
+    let config = { FsCheckConfig.defaultConfig with maxTest = 10000 }
 
     [<Tests>]
     let factorizationTests =
         testList "A=PLU" [
-            test "Matrix Multiplication Equivalency" {
+            testProp "Matrix Multiplication Equivalency" <| fun (As: SquareMatrix) ->
+                let (SquareMatrix A) = As
                 
-                let A =
-                    Matrix.FromRowVectors([
-                        V [| 3.; 2.; 10. |]
-                        V [| 1.; 5.; 1. |]
-                        V [| 2.; 4.; -2. |]
-                    ])
-                let P, L, U = A.LU
-
-                let ``A'`` = P * L * U
-
-                Expect.equal ``A'`` A "Multiplication PLU should have equaled A" // No float close array check?
-            }
+                try
+                    let P, L, U = A.LU
+                    let ``PA*`` = L * U
+                    let PA = P * A
+    
+                    let d = PA.Data |> Seq.cast<float>
+                    let ``d*`` =  ``PA*``.Data |> Seq.cast<float>
+                    let data = Seq.zip d ``d*`` |> Seq.toList
+                    data
+                    |> Seq.iter (fun (``pa*``, pa) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+                with
+                | :? LinearDependenceException as ex -> () // Expected not to work on linearly dependent matrices.
         ]

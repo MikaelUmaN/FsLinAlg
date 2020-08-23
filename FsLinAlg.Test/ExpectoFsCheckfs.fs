@@ -3,7 +3,8 @@ namespace FsLinAlg.Test
 open System
 open Expecto
 open FsCheck
-open FsLinAlg.DataStructure
+
+open FsLinAlg
 
 [<AutoOpen>]
 module ExpectoFsCheck =
@@ -11,14 +12,37 @@ module ExpectoFsCheck =
     type SquareMatrix = SquareMatrix of Matrix
     type RectangularMatrix = RectangularMatrix of Matrix
 
+    /// A tall and thin matrix has the property that m > n.
+    type TallThinMatrix = TallThinMatrix of Matrix
+
     let minDim = 1
     let maxDim = 10
+
+    let minTallThinN = 1
+    let maxTallThinN = 5
+    let tallThinMFactor = 2
     
+    let matrixDim minD maxD = gen {
+        return! Gen.choose (minD, maxD)
+    }
     let smallMatrixDim = gen {
-        return! Gen.choose (minDim, maxDim)
+        return! matrixDim minDim maxDim
+    }
+    let rectangularMatrixDim minD maxD = gen {
+        return! matrixDim minD maxD |> Gen.two
     }
     let smallRectangularMatrixDim = gen {
-        return! smallMatrixDim |> Gen.two
+        return! rectangularMatrixDim minDim maxDim
+    }
+    let tallThinMatrixDim minN maxN mFactor = gen {
+        let! n = matrixDim minN maxN
+        let minM = n + 1
+        let maxM = minM * mFactor
+        let! m = Gen.choose (minM, maxM)
+        return (m, n)
+    }
+    let smallTallThinMatrixDim = gen {
+        return! tallThinMatrixDim minTallThinN maxTallThinN tallThinMFactor
     }
 
     let nonNegInt = Arb.generate<NonNegativeInt>
@@ -28,24 +52,39 @@ module ExpectoFsCheck =
         static member Matrix() =
             { new Arbitrary<Matrix>() with
                 override x.Generator =
-                    let dim = smallRectangularMatrixDim |> Gen.sample 0 1 |> List.head
-                    let vals = nonNanFloat |> Gen.array2DOfDim dim |> Gen.sample 0 1 |> List.head
-                    let fvals = vals |> Array2D.map (fun v -> v.Get)
-                    Matrix(fvals) |> Gen.constant }
+                    gen {
+                        let! dim = smallRectangularMatrixDim
+                        let! vals = nonNanFloat |> Gen.array2DOfDim dim
+                        let fvals = vals |> Array2D.map (fun v -> v.Get)
+                        return Matrix(fvals)
+                    } }
         static member SquareMatrix() =
             { new Arbitrary<SquareMatrix>() with
                 override x.Generator =
-                    let dim = smallMatrixDim |> Gen.sample 0 1 |> List.head
-                    let vals = nonNanFloat |> Gen.array2DOfDim (dim, dim) |> Gen.sample 0 1 |> List.head
-                    let fvals = vals |> Array2D.map (fun v -> v.Get)
-                    SquareMatrix(Matrix(fvals)) |> Gen.constant }
+                    gen {
+                        let! dim = smallMatrixDim
+                        let! vals = nonNanFloat |> Gen.array2DOfDim (dim, dim)
+                        let fvals = vals |> Array2D.map (fun v -> v.Get)
+                        return SquareMatrix(Matrix(fvals))
+                    } }
         static member RectangularMatrix() =
             { new Arbitrary<RectangularMatrix>() with
                 override x.Generator =
-                    let dim = smallRectangularMatrixDim |> Gen.sample 0 1 |> List.head
-                    let vals = nonNanFloat |> Gen.array2DOfDim dim |> Gen.sample 0 1 |> List.head
-                    let fvals = vals |> Array2D.map (fun v -> v.Get)
-                    RectangularMatrix(Matrix(fvals)) |> Gen.constant }
+                    gen {
+                        let! dim = smallRectangularMatrixDim
+                        let! vals = nonNanFloat |> Gen.array2DOfDim dim
+                        let fvals = vals |> Array2D.map (fun v -> v.Get)
+                        return RectangularMatrix(Matrix(fvals))
+                    } }
+        static member TallThinMatrix() =
+            { new Arbitrary<TallThinMatrix>() with
+                override x.Generator =
+                    gen {
+                        let! dim = smallTallThinMatrixDim
+                        let! vals = nonNanFloat |> Gen.array2DOfDim dim
+                        let fvals = vals |> Array2D.map (fun v -> v.Get)
+                        return TallThinMatrix(Matrix(fvals))
+                    } }
 
     let private config = { 
         FsCheckConfig.defaultConfig with 

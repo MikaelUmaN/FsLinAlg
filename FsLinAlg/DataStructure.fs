@@ -1,13 +1,37 @@
 ﻿namespace FsLinAlg
 open System
 
+/// Contains the fundamental datastructures.
+[<AutoOpen>]
 module DataStructure =
     
-    /// Column vector.
-    type Vector(data: float[]) =
-        member _.Length = data.Length
+    /// Vector that is either a column- or a row-vector.
+    /// Provides a transpose operation to change the orientation.
+    type Vector(data: float[], ?isColumnVector: bool) =
+        let isColumnVector = defaultArg isColumnVector true
+
+        let m = if isColumnVector then data.Length else 1
+        let n = if isColumnVector then 1 else data.Length
+
+        member _.M = m
+        member _.N = n
+
+        member _.IsColumnVector = isColumnVector
 
         member _.Data = data
+
+        member _.Length = data.Length
+
+        member this.T = Vector(this.Data, not this.IsColumnVector)
+
+        member this.Norm =
+            this |> Vector.map (fun x -> x**2.) |> Vector.sum |> sqrt
+
+        member this.AsMatrix =
+            if not this.IsColumnVector then 
+                Matrix.FromRowVectors [this] 
+            else 
+                Matrix.FromColumnVectors [this]
 
         /// Get/Set value by row.
         member _.Item
@@ -47,7 +71,7 @@ module DataStructure =
         static member (+) (x: Vector, y: Vector) =
             Array.zip x.Data y.Data |> Array.map (fun (a, b) -> a + b) |> Vector
         static member (-) (x: Vector, y: Vector) = x + (-y)
-        static member (*) (x: Vector, y: Vector) =
+        static member elementWiseProduct (x: Vector, y: Vector) =
             Array.zip x.Data y.Data |> Array.map (fun (a, b) -> a * b) |> Vector
         static member (/) (x: Vector, y: Vector) =
             Array.zip x.Data y.Data |> Array.map (fun (a, b) -> a / b) |> Vector
@@ -56,6 +80,17 @@ module DataStructure =
         static member ( *+) (x: Vector, y: Vector) =
             Array.zip x.Data y.Data |> Array.sumBy (fun (a, b) -> a * b)
 
+        /// Inner (dot-product) or outer product.
+        static member (*) (x: Vector, y: Vector) =
+            x.AsMatrix * y.AsMatrix
+
+        static member zero n = Vector(Array.zeroCreate n)
+        static member e i n =
+            let d = Array.zeroCreate n
+            d.[i] <- 1.
+            Vector(d) 
+        static member sum (v: Vector) = v.Data |> Array.sum
+        static member norm (v: Vector) = v.Norm
         static member map f (v: Vector) = v.Data |> Array.map f |> Vector
         static member length (v: Vector) = v.Data |> Array.length
         static member max (v: Vector) = v.Data |> Array.max
@@ -64,13 +99,8 @@ module DataStructure =
         static member findMaxIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.max))
         static member findMinIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.min))
 
-    type Vec = Vector
-
-    /// Constructor for a vector.
-    let V (d: float[]) = Vector(d)
-
     /// Row-major matrix of size m (rows) by n (columns).
-    type Matrix(data: float[,]) =
+    and Matrix(data: float[,]) =
         
         let m = Array2D.length1 data 
         let n = Array2D.length2 data
@@ -79,7 +109,7 @@ module DataStructure =
         member _.N = Array2D.length2 data
         member this.Dimensions = (this.M, this.N)
 
-        static member FromColumnVectors (columns: list<Vec>) =
+        static member FromColumnVectors (columns: list<Vector>) =
             if columns.IsEmpty then
                 failwith "Column vector list cannot be empty"
             else
@@ -90,7 +120,7 @@ module DataStructure =
                     let data = Array2D.init m n (fun i j -> columns.[j].[i]) 
                     Matrix(data)
 
-        static member FromRowVectors (rows: list<Vec>) =
+        static member FromRowVectors (rows: list<Vector>) =
             if rows.IsEmpty then
                 failwith "Row vector list cannot be empty"
             else
@@ -111,7 +141,7 @@ module DataStructure =
         static member maxDim (A: Matrix) = max A.M A.N
 
         member _.Data = data
-        
+
         member _.Item
             with get(row, column) =
                 data.[row, column]
@@ -161,6 +191,12 @@ module DataStructure =
                 defaultArg er (this.M-1)
             data.[sr..er, c] <- x.Data
 
+        member this.Rows = seq { for i in 0..this.M-1 -> this.[i, *].T }
+
+        member this.Columns = seq { for i in 0..this.N-1 -> this.[*, i] }
+
+        member this.T = this.Rows |> Seq.toList |> Matrix.FromRowVectors
+
         /// Unary ops
         static member (~-) (M: Matrix) = M.Data |> Array2D.map (~-) |> Matrix
 
@@ -168,10 +204,6 @@ module DataStructure =
         static member (*) (M: Matrix, x: float) =
             M.Data |> Array2D.map (fun y -> y * x) |> Matrix
         static member (*) (x: float, M: Matrix) = M * x
-
-        /// Matrix-vector ops
-        //static member (*) (M: Matrix, v: Vector) =
-        //static member (*) (x: float, v: Matrix) = v * x
 
         /// Matrix-matrix ops
         static member (*) (A: Matrix, B: Matrix) =
@@ -181,11 +213,30 @@ module DataStructure =
                 Array2D.init A.M B.N (fun i j -> A.[i, *] *+ B.[*, j])
                 |> Matrix
 
+        static member (+) (A: Matrix, B: Matrix) =
+            Array2D.init A.M B.N (fun i j -> A.[i, j] + B.[i, j])
+            |> Matrix
+
+        static member (-) (A: Matrix, B: Matrix) =
+            -B + A
+
+        /// Matrix-vector ops
+        static member (*) (v: Vector, M: Matrix) =
+            v.AsMatrix * M
+
+        static member (*) (M: Matrix, v: Vector) =
+            M * v.AsMatrix
+
         interface ICloneable with
             member this.Clone() =
                 this.Data |> Array2D.copy |> Matrix :> obj
 
         member this.Clone() = (this :> ICloneable).Clone() :?> Matrix
+
+    type Vec = Vector
+
+    /// Constructor for a vector.
+    let V (d: float[]) = Vector(d)
 
     type Mat = Matrix
 

@@ -14,6 +14,7 @@ module ExpectoFsCheck =
 
     /// A tall and thin matrix has the property that m > n.
     type TallThinMatrix = TallThinMatrix of Matrix
+    type TallThinMatrixSystem = TallThinMatrixSystem of Matrix * Vector
 
     let minDim = 1
     let maxDim = 10
@@ -49,6 +50,15 @@ module ExpectoFsCheck =
     let nonNanFloat = Arb.generate<NormalFloat>
 
     type MatrixGens =
+        static member Vector() =
+            { new Arbitrary<Vector>() with
+                override x.Generator =
+                    gen {
+                        let! dim = smallMatrixDim
+                        let! vals = nonNanFloat |> Gen.arrayOfLength dim
+                        let fvals = vals |> Array.map (fun v -> v.Get)
+                        return Vector(fvals)
+                    } }
         static member Matrix() =
             { new Arbitrary<Matrix>() with
                 override x.Generator =
@@ -84,6 +94,16 @@ module ExpectoFsCheck =
                         let! vals = nonNanFloat |> Gen.array2DOfDim dim
                         let fvals = vals |> Array2D.map (fun v -> v.Get)
                         return TallThinMatrix(Matrix(fvals))
+                    } }
+        static member TallThinMatrixSystem() =
+            { new Arbitrary<TallThinMatrixSystem>() with
+                override x.Generator =
+                    gen {
+                        let! As = Arb.generate<TallThinMatrix>
+                        let (TallThinMatrix A) = As
+                        let! vals = nonNanFloat |> Gen.arrayOfLength A.M
+                        let fvals = vals |> Array.map (fun v -> v.Get)
+                        return TallThinMatrixSystem(A, Vector(fvals))
                     } }
 
     let private config = { 

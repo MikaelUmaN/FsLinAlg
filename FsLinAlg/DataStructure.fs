@@ -41,17 +41,17 @@ module DataStructure =
                 data.[row] <- x
 
         /// Column vector slices.
-        member this.GetSlice
-            with get(sr, er) =
-                let sr, er =
-                    defaultArg sr 0,
-                    defaultArg er (this.Length-1)
-                data.[sr..er] |> Vector
-            and set(sr, er) (x: Vector) =
-                let sr, er =
-                    defaultArg sr 0,
-                    defaultArg er (this.Length-1)
-                data.[sr..er] <- x.Data
+        member this.GetSlice(sr, er) =
+            let sr, er =
+                defaultArg sr 0,
+                defaultArg er (this.Length-1)
+            data.[sr..er] |> Vector
+            
+        member this.SetSlice(sr, er, x: Vector) =
+            let sr, er =
+                defaultArg sr 0,
+                defaultArg er (this.Length-1)
+            data.[sr..er] <- x.Data
 
         /// Unary ops
         static member (~-) (v: Vector) = v.Data |> Array.map (~-) |> Vector

@@ -34,44 +34,64 @@ module Factorization =
                     U.[j, k..m-1] <- U.[j, k..m-1] - L.[j, k]*U.[k, k..m-1]
         P, L, U
 
-    /// Reduced QR, Q m by n
-    let QR (A: Matrix) =
+    let private QRinner(A: Matrix) =
         let R = A.Clone()
         let m = A.M
         let n = A.N
 
-        let rec triangulate k Qp =
+        let rec triangulate k uks =
             let x = R.[k.., k]
             let sn = float(sign x.[0])
             let vk = sn * x.Norm * Vector.e 0 x.Length + x
 
             // Forming R
-            let qk =
+            let uk =
                 if vk.Norm <> 0. then
                     let u = vk / vk.Norm
                     let q = 2.*u*u.T
                     R.[k.., k..] <- R.[k.., k..] - q * R.[k.., k..]
-                    q
+                    u
                 else
-                    Matrix.I (n-k)
+                    Vector.zero vk.Length
 
-            // Forming Q
-            let qkm = Matrix.I m
-            qkm.[k.., k..] <- qk
-            let Qn = Matrix.I m - qkm
-            let Qk = Qp * Qn.T
-
+            let uksn = uk::uks
             if k <> n-1 then
                 // Because of machine precision rounding errors.
                 R.[k+1.., k] <- m-1-k |> Vector.zero
-                triangulate (k+1) Qk
+                triangulate (k+1) uksn
             else
-                Qk
+                uksn
 
-        let Q0 = Matrix.I m
-        let Q = triangulate 0 Q0
+        let uks = triangulate 0 [] |> List.zip [n-1..-1..0]
+        R, uks
 
-        Q, R
+    /// Returns Product Q.T * b and reduced R from QR factorization.
+    let QRb (A: Matrix) (b: Vector) =
+        let n = A.N
+
+        let R, uks = QRinner A
+        let ruks = uks |> List.rev
+        let qb = List.fold (fun (x: Vector) (k, v: Vector) -> x.[k..] <- x.[k..] - 2.*v*(v.T *+ x.[k..]); x)
+        
+        let Qtb = qb b ruks
+        let Rr = R.[..n-1, ..n-1]
+        Qtb, Rr
+
+    /// Reduced QR, Q m by n
+    let QR (A: Matrix) =
+        let m = A.M
+        let n = A.N
+
+        let R, uks = QRinner A
+        let qx = List.fold (fun (x: Vector) (k, v: Vector) -> x.[k..] <- x.[k..] - 2.*v*(v.T *+ x.[k..]); x)
+        let qks = 
+            [for i in 0..n-1 -> 
+                let ei = Vector.e i m
+                qx ei uks]
+        let Q = qks |> Matrix.FromColumnVectors
+
+        let Rr = R.[..n-1, ..n-1]
+        Q, Rr
 
     type Matrix with
     
@@ -80,3 +100,5 @@ module Factorization =
 
         /// Reduced QR using Householder reflections for triangularization.
         member this.QR = QR this
+
+        member this.QRb b = QRb this b

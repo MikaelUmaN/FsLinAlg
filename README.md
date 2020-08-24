@@ -5,8 +5,13 @@ Linear algebra for FSharp.
 
 ## Functionality
 - Matrix, vectors and basic operators
+
+## Factorizations
 - PA=LU
-- A=QR (Q formed incorrectly...)
+- A=QR
+
+## Solving Equations
+
 
 ## Caveats
 Nothing here is meant to be quick. Performance is best in dedicated libraries such as BLAS, LAPACK, CudaToolkit, ...

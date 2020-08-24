@@ -43,4 +43,17 @@ module Factorization =
                     data
                     |> Seq.iter (fun (``pa*``, pa) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
             ]
+
+            testList "QRb" [
+                testProp "Qtb, R equivalency with A=QR" <| fun (Abs: TallThinMatrixSystem) ->
+                    let (TallThinMatrixSystem (A, b)) = Abs
+                    let Qtb, ``R*`` = A.QRb b
+                    let _, R = A.QR
+
+                    let d = R.Data |> Seq.cast<float>
+                    let ``d*`` =  ``R*``.Data |> Seq.cast<float>
+                    let data = Seq.zip d ``d*`` |> Seq.toList
+                    data
+                    |> Seq.iter (fun (``pa*``, pa) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+            ]
         ]

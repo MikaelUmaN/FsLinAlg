@@ -11,7 +11,8 @@ Linear algebra for FSharp.
 - A=QR
 
 ## Solving Equations
-
+- Backsubstitution for upper-triangular systems.
+- Ax=b solved by QR with implicit Q.T * b formation.
 
 ## Caveats
 Nothing here is meant to be quick. Performance is best in dedicated libraries such as BLAS, LAPACK, CudaToolkit, ...

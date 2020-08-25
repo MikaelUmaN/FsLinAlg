@@ -99,6 +99,13 @@ module DataStructure =
         static member findMaxIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.max))
         static member findMinIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.min))
 
+        interface ICloneable with
+            member this.Clone() =
+                this.Data |> Array.copy |> Vector :> obj
+
+        member this.Clone() = (this :> ICloneable).Clone() :?> Vector
+
+
     /// Row-major matrix of size m (rows) by n (columns).
     and Matrix(data: float[,]) =
         
@@ -196,6 +203,14 @@ module DataStructure =
         member this.Columns = seq { for i in 0..this.N-1 -> this.[*, i] }
 
         member this.T = this.Rows |> Seq.toList |> Matrix.FromRowVectors
+
+        member this.AsVector =
+            if this.M = 1 then 
+                Vector(this.Data.[0, *], isColumnVector=false)
+            elif this.N = 1 then
+                Vector(this.Data.[*, 0])
+            else
+                raise invDim
 
         /// Unary ops
         static member (~-) (M: Matrix) = M.Data |> Array2D.map (~-) |> Matrix

@@ -1,7 +1,6 @@
 namespace FsLinAlg
 
-open DataStructure
-
+[<AutoOpen>]
 module Factorization =
 
     let PLU (A: Matrix) =
@@ -66,7 +65,8 @@ module Factorization =
         R, uks
 
     /// Returns Product Q.T * b and reduced R from QR factorization.
-    let QRb (A: Matrix) (b: Vector) =
+    let QRb (A: Matrix) (bs: Vector) =
+        let b = bs.Clone()
         let n = A.N
 
         let R, uks = QRinner A

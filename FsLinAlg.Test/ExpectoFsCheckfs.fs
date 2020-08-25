@@ -10,6 +10,7 @@ open FsLinAlg
 module ExpectoFsCheck =
 
     type SquareMatrix = SquareMatrix of Matrix
+    type SquareMatrixSystem = SquareMatrixSystem of Matrix * Vector
     type RectangularMatrix = RectangularMatrix of Matrix
 
     /// A tall and thin matrix has the property that m > n.
@@ -76,6 +77,16 @@ module ExpectoFsCheck =
                         let! vals = nonNanFloat |> Gen.array2DOfDim (dim, dim)
                         let fvals = vals |> Array2D.map (fun v -> v.Get)
                         return SquareMatrix(Matrix(fvals))
+                    } }
+        static member SquareMatrixSystem() =
+            { new Arbitrary<SquareMatrixSystem>() with
+                override x.Generator =
+                    gen {
+                        let! As = Arb.generate<SquareMatrix>
+                        let (SquareMatrix A) = As
+                        let! vals = nonNanFloat |> Gen.arrayOfLength A.M
+                        let fvals = vals |> Array.map (fun v -> v.Get)
+                        return SquareMatrixSystem(A, Vector(fvals))
                     } }
         static member RectangularMatrix() =
             { new Arbitrary<RectangularMatrix>() with

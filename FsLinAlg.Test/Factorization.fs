@@ -3,8 +3,6 @@ namespace FsLinAlg.Test
 open Expecto
 
 open FsLinAlg
-open FsLinAlg.Factorization
-open DataStructure
 
 module Factorization =
 

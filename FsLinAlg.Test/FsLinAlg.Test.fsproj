@@ -11,6 +11,7 @@
     <Compile Include="ExpectoFsCheckfs.fs" />
     <Compile Include="DataStructure.fs" />
     <Compile Include="Factorization.fs" />
+    <Compile Include="Equation.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -7,5 +7,6 @@
     <Compile Include="Exceptions.fs" />
     <Compile Include="DataStructure.fs" />
     <Compile Include="Factorization.fs" />
+    <Compile Include="Equation.fs" />
   </ItemGroup>
 </Project>

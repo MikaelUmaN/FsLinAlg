@@ -88,7 +88,9 @@ module DataStructure =
         static member e i n =
             let d = Array.zeroCreate n
             d.[i] <- 1.
-            Vector(d) 
+            Vector(d)
+
+        static member exists pred (v: Vector) = v.Data |> Array.exists pred
         static member sum (v: Vector) = v.Data |> Array.sum
         static member norm (v: Vector) = v.Norm
         static member map f (v: Vector) = v.Data |> Array.map f |> Vector
@@ -202,7 +204,20 @@ module DataStructure =
 
         member this.Columns = seq { for i in 0..this.N-1 -> this.[*, i] }
 
-        member this.T = this.Rows |> Seq.toList |> Matrix.FromRowVectors
+        member this.T = this.Columns |> Seq.toList |> Matrix.FromRowVectors
+
+        member this.D =
+            let d = min this.M this.N |> int
+            [| for i in 0..d-1 -> this.[i, i] |]
+            |> Vector
+
+        /// Returns a clone matrix that is upper triangular (diagonal included).
+        member this.UpperTriangular =
+            let (A: Matrix) = this.Clone()
+            A.Rows
+            |> Seq.mapi (fun i r -> r.[..i-1] <- Vector.zero i; r)
+            |> Seq.toList
+            |> Matrix.FromRowVectors
 
         member this.AsVector =
             if this.M = 1 then 
@@ -219,6 +234,9 @@ module DataStructure =
         static member (*) (M: Matrix, x: float) =
             M.Data |> Array2D.map (fun y -> y * x) |> Matrix
         static member (*) (x: float, M: Matrix) = M * x
+        static member (/) (M: Matrix, x: float) =
+            M.Data |> Array2D.map (fun y -> y / x) |> Matrix
+        static member (/) (x: float, M: Matrix) = M / x
 
         /// Matrix-matrix ops
         static member (*) (A: Matrix, B: Matrix) =

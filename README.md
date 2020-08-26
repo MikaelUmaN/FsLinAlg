@@ -9,6 +9,7 @@ Linear algebra for FSharp.
 ## Factorizations
 - PA=LU
 - A=QR
+- Cholesky, A=R.T R (also expressed A=LL.T)
 
 ## Solving Equations
 - Backsubstitution for upper-triangular systems.

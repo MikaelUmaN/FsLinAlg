@@ -93,6 +93,23 @@ module Factorization =
         let Rr = R.[..n-1, ..n-1]
         Q, Rr
 
+    /// A = R.T R
+    /// Elimination on a symmetric matrix.
+    /// Returns upper-triangular matrix R.
+    let Cholesky (A: Matrix) =
+        let R = A.UpperTriangular
+        let m = R.M
+
+        for k in 0..m-1 do
+            for j in k+1..m-1 do
+                if R.[k, k] = 0. then
+                    raise notPosDef
+                R.[j, j..] <- R.[j, j..] - (R.[k, j]*R.[k, j..])/R.[k, k]
+            if R.[k, k] <= 0. then
+                raise notPosDef
+            R.[k, k..] <- R.[k, k..]/sqrt(R.[k, k])   
+        R
+
     type Matrix with
     
         /// Gaussian elimination with partial pivoting.
@@ -102,3 +119,6 @@ module Factorization =
         member this.QR = QR this
 
         member this.QRb b = QRb this b
+
+        /// Returns upper-triangular matrix R for which A=R.T * R
+        member this.Cholesky = Cholesky this

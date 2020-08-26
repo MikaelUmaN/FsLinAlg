@@ -24,7 +24,7 @@ module Factorization =
                         let ``d*`` =  ``PA*``.Data |> Seq.cast<float>
                         let data = Seq.zip d ``d*`` |> Seq.toList
                         data
-                        |> Seq.iter (fun (``pa*``, pa) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+                        |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
                     with
                     | :? LinearDependenceException as ex -> () // Expected not to work on linearly dependent matrices.
             ]
@@ -39,19 +39,33 @@ module Factorization =
                     let ``d*`` =  ``A*``.Data |> Seq.cast<float>
                     let data = Seq.zip d ``d*`` |> Seq.toList
                     data
-                    |> Seq.iter (fun (``pa*``, pa) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+                    |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
             ]
 
             testList "QRb" [
                 testProp "Qtb, R equivalency with A=QR" <| fun (Abs: TallThinMatrixSystem) ->
                     let (TallThinMatrixSystem (A, b)) = Abs
-                    let Qtb, ``R*`` = A.QRb b
+                    let _, ``R*`` = A.QRb b
                     let _, R = A.QR
 
                     let d = R.Data |> Seq.cast<float>
                     let ``d*`` =  ``R*``.Data |> Seq.cast<float>
                     let data = Seq.zip d ``d*`` |> Seq.toList
                     data
-                    |> Seq.iter (fun (``pa*``, pa) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+                    |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+            ]
+
+            testList "Cholesky" [
+                testProp "A=R.T R multiplication equivalency" <| fun (As: PositiveDefiniteSymmetricMatrix) ->
+                    let (PositiveDefiniteSymmetricMatrix A) = As
+                    let R = A.Cholesky
+                    
+                    let ``A*`` = R.T * R
+
+                    let d = A.Data |> Seq.cast<float>
+                    let ``d*`` =  ``A*``.Data |> Seq.cast<float>
+                    let data = Seq.zip d ``d*`` |> Seq.toList
+                    data
+                    |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
             ]
         ]

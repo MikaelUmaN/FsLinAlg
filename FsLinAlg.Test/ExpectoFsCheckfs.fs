@@ -4,10 +4,14 @@ open System
 open Expecto
 open FsCheck
 
+open MathNet.Numerics.Distributions
+
 open FsLinAlg
 
 [<AutoOpen>]
 module ExpectoFsCheck =
+
+    let cdfn x = Normal.CDF(0., 1., x)
 
     type SquareMatrix = SquareMatrix of Matrix
     type SquareMatrixSystem = SquareMatrixSystem of Matrix * Vector
@@ -16,6 +20,8 @@ module ExpectoFsCheck =
     /// A tall and thin matrix has the property that m > n.
     type TallThinMatrix = TallThinMatrix of Matrix
     type TallThinMatrixSystem = TallThinMatrixSystem of Matrix * Vector
+
+    type PositiveDefiniteSymmetricMatrix = PositiveDefiniteSymmetricMatrix of Matrix
 
     let minDim = 1
     let maxDim = 10
@@ -116,6 +122,24 @@ module ExpectoFsCheck =
                         let fvals = vals |> Array.map (fun v -> v.Get)
                         return TallThinMatrixSystem(A, Vector(fvals))
                     } }
+        static member PositiveDefiniteSymmetricMatrix() =
+            { new Arbitrary<PositiveDefiniteSymmetricMatrix>() with
+            override x.Generator =
+                gen {
+                    let! dim = smallMatrixDim
+                    let! vals = nonNanFloat |> Gen.array2DOfDim (dim, dim)
+                    let fvals = vals |> Array2D.map (fun v -> cdfn v.Get)
+                    
+                    // Start from a random matrix.
+                    let A = Matrix(fvals)
+
+                    // Make it symmetric and diagonally dominant
+                    // -> Positive Symmetric Definite
+                    let At = A.T
+                    let AAt = 0.5*(A + At) + float(dim)*(Matrix.I dim)
+
+                    return PositiveDefiniteSymmetricMatrix(AAt)
+                } }
 
     let private config = { 
         FsCheckConfig.defaultConfig with 

@@ -95,21 +95,24 @@ module Factorization =
     let Hessenberg (A: Matrix) =
         let m = A.M
         if not A.IsSquare then raise <| invDimMsg "Expected square matrix"
+        let issym = A.IsSymmetric
 
         let H = A.Clone()
         if m <= 2 then 
-            A.Clone(), []
+            H, []
         else
             let rec triangulate k uks =
                 let x = H.[k+1.., k]
                 let sn = float(sign x.[0])
-                let vk = sn * x.Norm * Vector.e 0 x.Length + x
+                let vt = x.Norm * Vector.e 0 x.Length + x
+                let vk = if sn < 0. then -1. * vt else vt
 
                 let uk = 
                     if vk.Norm <> 0. then
                         let u = vk / vk.Norm
-                        H.[k+1.., k..] <- H.[k+1.., k..] - 2.*u*(u.T*H.[k+1.., k..])
-                        H.[*, k+1..] <- H.[*, k+1..] - 2.*(H.[*, k+1..]*u)*u.T
+                        H.[k+1.., k..] <- H.[k+1.., k..] - 2.*u*(u.T*H.[k+1.., k..]) // Householder refl applied on the left.
+                        let rs = if issym then k else 0
+                        H.[rs.., k+1..] <- H.[rs.., k+1..] - 2.*(H.[rs.., k+1..]*u)*u.T // Householder refl applied to the right.
                         u
                     else 
                         Vector.zero vk.Length

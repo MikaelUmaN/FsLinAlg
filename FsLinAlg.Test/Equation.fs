@@ -19,7 +19,7 @@ module Equation =
 
               testList
                   "Manual QRb"
-                  [ test "scip.linalg.qr reference test" {
+                  [ test "scipy.linalg.qr reference test" {
 
                         (*
                             From Python. There is a sign difference in R, but it is reflected in Q.

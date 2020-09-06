@@ -20,7 +20,7 @@ module Constants =
 
     /// Relaxed tolerance threshold.
     /// Tolerance should be based on the condition number of the calculation.
-    let tol = machEps * 2.**16.
+    let tol = machEps * 2.**20.
 
     let isZero x = abs x < tol
 

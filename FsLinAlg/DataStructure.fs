@@ -292,6 +292,8 @@ module DataStructure =
                     if isZero fn then isZero dn else dn / fn |> isZero
             | _ -> false
 
+        override _.ToString() = sprintf "%A" data
+
         /// Unary ops
         static member (~-) (M: Matrix) = M.Data |> Array2D.map (~-) |> Matrix
 

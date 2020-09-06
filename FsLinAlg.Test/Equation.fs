@@ -51,21 +51,10 @@ module Equation =
 
                         let Qtb, R = A.QRb b
                         let ``x*`` = backSubstitute R Qtb
-                        let ``b*`` = (A * x).AsVector
+                        let ``b*`` = A * x |> Matrix.toVector
 
-                        let d = x.Data |> Seq.cast<float>
-                        let ``d*`` = ``x*``.Data |> Seq.cast<float>
-                        let data = Seq.zip d ``d*`` |> Seq.toList
-                        data
-                        |> Seq.iter (fun (``pa*``, pa) ->
-                            Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match") 
-
-                        let d2 = b.Data |> Seq.cast<float>
-                        let ``d2*`` = ``b*``.Data |> Seq.cast<float>
-                        let data2 = Seq.zip d2 ``d2*`` |> Seq.toList
-                        data2
-                        |> Seq.iter (fun (``pa2*``, pa2) ->
-                            Expect.floatClose Accuracy.high ``pa2*`` pa2 "Elements do not match")
+                        Expect.equal ``x*`` x "x vectors are not equal"
+                        Expect.equal ``b*`` b "b vectors are not equal"
                     } ]
 
               testList
@@ -74,13 +63,6 @@ module Equation =
                     <| fun (Abs: SquareMatrixSystem) ->
                         let (SquareMatrixSystem (A, b)) = Abs
                         let Qtb, R = A.QRb b
-
                         let x = backSubstitute R Qtb
-                        let ``b*`` = A * x
-
-                        let d = b.Data |> Seq.cast<float>
-                        let ``d*`` = ``b*``.Data |> Seq.cast<float>
-                        let data = Seq.zip d ``d*`` |> Seq.toList
-                        data
-                        |> Seq.iter (fun (``pa*``, pa) ->
-                            Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match") ] ]
+                        let ``b*`` = A * x |> Matrix.toVector
+                        Expect.equal ``b*`` b "b vectors are not equal" ] ]

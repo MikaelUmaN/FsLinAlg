@@ -3,7 +3,7 @@ namespace FsLinAlg.Test
 open Expecto
 open FsCheck
 
-open FsLinAlg.DataStructure
+open FsLinAlg
 
 module DataStructure =
 

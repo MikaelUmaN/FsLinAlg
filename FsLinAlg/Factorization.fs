@@ -54,12 +54,7 @@ module Factorization =
                     Vector.zero vk.Length
 
             let uksn = uk::uks
-            if k <> n-1 then
-                // Because of machine precision rounding errors.
-                R.[k+1.., k] <- m-1-k |> Vector.zero
-                triangulate (k+1) uksn
-            else
-                uksn
+            if k <> n-1 then triangulate (k+1) uksn else uksn
 
         let uks = triangulate 0 [] |> List.zip [n-1..-1..0]
         R, uks
@@ -93,6 +88,36 @@ module Factorization =
         let Rr = R.[..n-1, ..n-1]
         Q, Rr
 
+    /// Reduction to Hessenberg form using two-sided Householder reflections.
+    /// Tridiagonal for symmetric matrices.
+    /// Returns the reduced matrix as well as vectors that can be used
+    /// to reconstruct Q.
+    let Hessenberg (A: Matrix) =
+        let m = A.M
+        if not A.IsSquare then raise <| invDimMsg "Expected square matrix"
+
+        let H = A.Clone()
+        if m <= 2 then 
+            A.Clone(), []
+        else
+            let rec triangulate k uks =
+                let x = H.[k+1.., k]
+                let sn = float(sign x.[0])
+                let vk = sn * x.Norm * Vector.e 0 x.Length + x
+
+                let uk = 
+                    if vk.Norm <> 0. then
+                        let u = vk / vk.Norm
+                        H.[k+1.., k..] <- H.[k+1.., k..] - 2.*u*(u.T*H.[k+1.., k..])
+                        H.[*, k+1..] <- H.[*, k+1..] - 2.*(H.[*, k+1..]*u)*u.T
+                        u
+                    else 
+                        Vector.zero vk.Length
+                if k = m-3 then uk::uks else triangulate (k+1) (uk::uks)
+
+            let uks = triangulate 0 []
+            H, uks
+
     /// A = R.T R
     /// Elimination on a symmetric matrix.
     /// Returns upper-triangular matrix R.
@@ -122,3 +147,5 @@ module Factorization =
 
         /// Returns upper-triangular matrix R for which A=R.T * R
         member this.Cholesky = Cholesky this
+
+        member this.Hessenberg = Hessenberg this

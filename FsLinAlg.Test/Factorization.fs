@@ -14,32 +14,21 @@ module Factorization =
             testList "A=PLU" [
                 testProp "Matrix Multiplication Equivalency" <| fun (As: SquareMatrix) ->
                     let (SquareMatrix A) = As
-                    
                     try
                         let P, L, U = A.LU
                         let ``PA*`` = L * U
                         let PA = P * A
-        
-                        let d = PA.Data |> Seq.cast<float>
-                        let ``d*`` =  ``PA*``.Data |> Seq.cast<float>
-                        let data = Seq.zip d ``d*`` |> Seq.toList
-                        data
-                        |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+                        Expect.equal ``PA*`` PA "PA did not equal PLU"
                     with
-                    | :? LinearDependenceException as ex -> () // Expected not to work on linearly dependent matrices.
+                    | :? LinearDependenceException -> () // Expected not to work on linearly dependent matrices.
             ]
 
             testList "A=QR" [
                 testProp "Matrix Multiplication Equivalency" <| fun (As: TallThinMatrix) ->
                     let (TallThinMatrix A) = As
                     let Q, R = A.QR
-
                     let ``A*`` = Q * R
-                    let d = A.Data |> Seq.cast<float>
-                    let ``d*`` =  ``A*``.Data |> Seq.cast<float>
-                    let data = Seq.zip d ``d*`` |> Seq.toList
-                    data
-                    |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+                    Expect.equal ``A*`` A "Matrices are not equal"
             ]
 
             testList "QRb" [
@@ -47,25 +36,21 @@ module Factorization =
                     let (TallThinMatrixSystem (A, b)) = Abs
                     let _, ``R*`` = A.QRb b
                     let _, R = A.QR
-
-                    let d = R.Data |> Seq.cast<float>
-                    let ``d*`` =  ``R*``.Data |> Seq.cast<float>
-                    let data = Seq.zip d ``d*`` |> Seq.toList
-                    data
-                    |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+                    Expect.equal ``R*`` R "Matrices are not equal"
             ]
 
             testList "Cholesky" [
-                testProp "A=R.T R multiplication equivalency" <| fun (As: PositiveDefiniteSymmetricMatrix) ->
-                    let (PositiveDefiniteSymmetricMatrix A) = As
+                testProp "A=R.T R multiplication equivalency" <| fun (As: SymmetricPositiveDefiniteMatrix) ->
+                    let (SymmetricPositiveDefiniteMatrix A) = As
                     let R = A.Cholesky
-                    
                     let ``A*`` = R.T * R
+                    Expect.equal ``A*`` A "Matrices are not equal"
+            ]
 
-                    let d = A.Data |> Seq.cast<float>
-                    let ``d*`` =  ``A*``.Data |> Seq.cast<float>
-                    let data = Seq.zip d ``d*`` |> Seq.toList
-                    data
-                    |> Seq.iter (fun (pa, ``pa*``) -> Expect.floatClose Accuracy.high ``pa*`` pa "Elements do not match")
+            testList "Hessenberg" [
+                testProp "Upper Hessenberg result" <| fun (As: SquareMatrix) ->
+                    let (SquareMatrix A) = As
+                    let H, _ = A.Hessenberg
+                    Expect.isTrue (H.IsHessenberg()) "Matrix is not of hessenberg form"
             ]
         ]

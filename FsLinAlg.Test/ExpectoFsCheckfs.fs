@@ -21,9 +21,10 @@ module ExpectoFsCheck =
     type TallThinMatrix = TallThinMatrix of Matrix
     type TallThinMatrixSystem = TallThinMatrixSystem of Matrix * Vector
 
-    type PositiveDefiniteSymmetricMatrix = PositiveDefiniteSymmetricMatrix of Matrix
+    type SymmetricPositiveDefiniteMatrix = SymmetricPositiveDefiniteMatrix of Matrix
+    type SymmetricPositiveDefiniteMatrixSystem = SymmetricPositiveDefiniteMatrixSystem of Matrix * Vector
 
-    let minDim = 1
+    let minDim = 2
     let maxDim = 10
 
     let minTallThinN = 1
@@ -122,8 +123,8 @@ module ExpectoFsCheck =
                         let fvals = vals |> Array.map (fun v -> v.Get)
                         return TallThinMatrixSystem(A, Vector(fvals))
                     } }
-        static member PositiveDefiniteSymmetricMatrix() =
-            { new Arbitrary<PositiveDefiniteSymmetricMatrix>() with
+        static member SymmetricPositiveDefiniteMatrix() =
+            { new Arbitrary<SymmetricPositiveDefiniteMatrix>() with
             override x.Generator =
                 gen {
                     let! dim = smallMatrixDim
@@ -138,7 +139,18 @@ module ExpectoFsCheck =
                     let At = A.T
                     let AAt = 0.5*(A + At) + float(dim)*(Matrix.I dim)
 
-                    return PositiveDefiniteSymmetricMatrix(AAt)
+                    return SymmetricPositiveDefiniteMatrix(AAt)
+                } }
+        static member SymmetricPositiveDefiniteMatrixSystem() =
+            { new Arbitrary<SymmetricPositiveDefiniteMatrixSystem>() with
+            override x.Generator =
+                gen {
+                    let! As = Arb.generate<SymmetricPositiveDefiniteMatrix>
+                    let (SymmetricPositiveDefiniteMatrix A) = As
+                    let! vals = nonNanFloat |> Gen.arrayOfLength A.M
+                    let fvals = vals |> Array.map (fun v -> v.Get)
+
+                    return SymmetricPositiveDefiniteMatrixSystem(A, Vector(fvals))
                 } }
 
     let private config = { 

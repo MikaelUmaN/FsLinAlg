@@ -53,6 +53,17 @@ module DataStructure =
                 defaultArg er (this.Length-1)
             data.[sr..er] <- x.Data
 
+        override this.Equals other =
+            match other with
+            | :? Vector as v ->
+                if v.Length <> this.Length then
+                    false
+                else
+                    let vn = v.Norm
+                    let dn = this - v |> Vector.norm
+                    if isZero vn then isZero dn else dn / vn |> isZero
+            | _ -> false
+
         /// Unary ops
         static member (~-) (v: Vector) = v.Data |> Array.map (~-) |> Vector
 
@@ -81,8 +92,7 @@ module DataStructure =
             Array.zip x.Data y.Data |> Array.sumBy (fun (a, b) -> a * b)
 
         /// Inner (dot-product) or outer product.
-        static member (*) (x: Vector, y: Vector) =
-            x.AsMatrix * y.AsMatrix
+        static member (*) (x: Vector, y: Vector) = x.AsMatrix * y.AsMatrix
 
         static member zero n = Vector(Array.zeroCreate n)
         static member e i n =
@@ -116,7 +126,7 @@ module DataStructure =
         
         member _.M = Array2D.length1 data
         member _.N = Array2D.length2 data
-        member this.Dimensions = (this.M, this.N)
+        member _.Dimensions = (m, n)
 
         static member FromColumnVectors (columns: list<Vector>) =
             if columns.IsEmpty then
@@ -158,57 +168,75 @@ module DataStructure =
                 data.[row, column] <- x
 
         /// Sub-matrices.
-        member this.GetSlice(sr, er, sc, ec) =
+        member _.GetSlice(sr, er, sc, ec) =
             let sr, er, sc, ec =
                 defaultArg sr 0,
-                defaultArg er (this.M-1),
+                defaultArg er (m-1),
                 defaultArg sc 0,
-                defaultArg ec (this.N-1)
+                defaultArg ec (n-1)
             data.[sr..er, sc..ec] |> Matrix
             
-        member this.SetSlice(sr, er, sc, ec, x: Matrix) =
+        member _.SetSlice(sr, er, sc, ec, x: Matrix) =
             let sr, er, sc, ec =
                 defaultArg sr 0,
-                defaultArg er (this.M-1),
+                defaultArg er (m-1),
                 defaultArg sc 0,
-                defaultArg ec (this.N-1)
+                defaultArg ec (n-1)
             data.[sr..er, sc..ec] <- x.Data
 
         /// Row vector slices.
-        member this.GetSlice(r, sc, ec) =
+        member _.GetSlice(r, sc, ec) =
             let sc, ec =
                 defaultArg sc 0,
-                defaultArg ec (this.N-1)
+                defaultArg ec (n-1)
             data.[r, sc..ec] |> Vector
 
-        member this.SetSlice(r, sc, ec, x: Vector) =
+        member _.SetSlice(r, sc, ec, x: Vector) =
             let sc, ec =
                 defaultArg sc 0,
-                defaultArg ec (this.N-1)
+                defaultArg ec (n-1)
             data.[r, sc..ec] <- x.Data
 
         /// Column vector slices.
-        member this.GetSlice(sr, er, c) =
+        member _.GetSlice(sr, er, c) =
             let sr, er =
                 defaultArg sr 0,
-                defaultArg er (this.M-1)
+                defaultArg er (m-1)
             data.[sr..er, c] |> Vector
         
-        member this.SetSlice(sr, er, c, x: Vector) =
+        member _.SetSlice(sr, er, c, x: Vector) =
             let sr, er =
                 defaultArg sr 0,
-                defaultArg er (this.M-1)
+                defaultArg er (m-1)
             data.[sr..er, c] <- x.Data
 
-        member this.Rows = seq { for i in 0..this.M-1 -> this.[i, *].T }
+        member this.Rows = seq { for i in 0..m-1 -> this.[i, *].T }
 
-        member this.Columns = seq { for i in 0..this.N-1 -> this.[*, i] }
+        member this.Columns = seq { for i in 0..n-1 -> this.[*, i] }
 
+        /// Transpose of the matrix.
         member this.T = this.Columns |> Seq.toList |> Matrix.FromRowVectors
 
-        member this.D =
-            let d = min this.M this.N |> int
-            [| for i in 0..d-1 -> this.[i, i] |]
+        /// Sum of the diagonal.
+        member this.Trace = this.D |> Vector.sum
+            
+        /// L(p, q) norm.
+        member this.Lpq (p: int) (q: int) =
+            let pf, qf = float(p), float(q)
+            (Seq.sumBy (fun c -> 
+                    c 
+                    |> Vector.map (pwn pf)
+                    |> Vector.sum
+                    |> pwn (qf/pf)) this.Columns)
+            |> pwn (1./qf)
+
+        /// Frobenius norm = L(2, 2) norm.
+        member this.FrobeniusNorm = this.Lpq 2 2
+
+        /// The diagonal of the matrix.
+        member _.D =
+            let d = min m n |> int
+            [| for i in 0..d-1 -> data.[i, i] |]
             |> Vector
 
         /// Returns a clone matrix that is upper triangular (diagonal included).
@@ -219,13 +247,50 @@ module DataStructure =
             |> Seq.toList
             |> Matrix.FromRowVectors
 
-        member this.AsVector =
-            if this.M = 1 then 
-                Vector(this.Data.[0, *], isColumnVector=false)
-            elif this.N = 1 then
-                Vector(this.Data.[*, 0])
+        member _.AsVector =
+            if m = 1 then 
+                Vector(data.[0, *], isColumnVector=false)
+            elif n = 1 then
+                Vector(data.[*, 0])
             else
                 raise invDim
+
+        member this.IsScalar = this.IsSquare && m = 1
+
+        member this.AsScalar = if this.IsScalar then data.[0, 0] else raise invDim
+
+        member _.IsSquare = m = n
+
+        member this.IsSymmetric = this.IsSquare && this = this.T
+
+        member this.IsHessenberg(?u: bool) =
+            if this.IsSquare then
+
+                let cu = defaultArg u true
+                
+                let idxs = 
+                    [for i in 2..m-1 -> 
+                        [for j in 0..i-2 -> 
+                            if cu then (i, j) else (j, i)]]
+                    |> List.collect (id)
+                
+                idxs
+                |> List.forall (fun (i, j) -> isZero data.[i, j])
+            else
+                false
+
+        member this.IsTridiagonal = this.IsHessenberg() && this.IsHessenberg(false)
+
+        override this.Equals other =
+            match other with
+            | :? Matrix as A ->
+                if A.Dimensions <> this.Dimensions then
+                    false
+                else
+                    let fn = A.FrobeniusNorm
+                    let dn = this - A |> Matrix.frobeniusNorm
+                    if isZero fn then isZero dn else dn / fn |> isZero
+            | _ -> false
 
         /// Unary ops
         static member (~-) (M: Matrix) = M.Data |> Array2D.map (~-) |> Matrix
@@ -254,11 +319,15 @@ module DataStructure =
             -B + A
 
         /// Matrix-vector ops
-        static member (*) (v: Vector, M: Matrix) =
-            v.AsMatrix * M
+        static member (*) (v: Vector, M: Matrix) = v.AsMatrix * M
 
-        static member (*) (M: Matrix, v: Vector) =
-            M * v.AsMatrix
+        static member (*) (M: Matrix, v: Vector) = M * v.AsMatrix
+
+        static member map f (M: Matrix) = M.Data |> Array2D.map f |> Matrix
+        static member toVector (M: Matrix) = M.AsVector
+        static member toScalar (M: Matrix) = M.AsScalar
+        static member lpq p q (M: Matrix) = M.Lpq p q
+        static member frobeniusNorm (M: Matrix) = M.FrobeniusNorm
 
         interface ICloneable with
             member this.Clone() =

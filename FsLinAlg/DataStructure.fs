@@ -59,9 +59,9 @@ module DataStructure =
                 if v.Length <> this.Length then
                     false
                 else
-                    let vn = v.Norm
-                    let dn = this - v |> Vector.norm
-                    if isZero vn then isZero dn else dn / vn |> isZero
+                    let xy = List.zip (this |> Vector.toList) (v |> Vector.toList)
+                    xy
+                    |> List.forall (fun (x, y) -> if isZero y then isZero (x-y) else relEq x y)
             | _ -> false
 
         /// Unary ops
@@ -101,6 +101,8 @@ module DataStructure =
             Vector(d)
 
         static member exists pred (v: Vector) = v.Data |> Array.exists pred
+        static member toList (v: Vector) = v.Data |> Array.toList
+        static member toArray (v: Vector) = v.Data
         static member sum (v: Vector) = v.Data |> Array.sum
         static member norm (v: Vector) = v.Norm
         static member map f (v: Vector) = v.Data |> Array.map f |> Vector
@@ -287,9 +289,9 @@ module DataStructure =
                 if A.Dimensions <> this.Dimensions then
                     false
                 else
-                    let fn = A.FrobeniusNorm
-                    let dn = this - A |> Matrix.frobeniusNorm
-                    if isZero fn then isZero dn else dn / fn |> isZero
+                    let xy = List.zip (this.Data |> Seq.cast<float> |> Seq.toList) (A.Data |> Seq.cast<float> |> Seq.toList)
+                    xy
+                    |> List.forall (fun (x, y) -> if isZero y then isZero (x-y) else relEq x y)
             | _ -> false
 
         override _.ToString() = sprintf "%A" data

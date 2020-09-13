@@ -11,3 +11,6 @@ module Exceptions =
 
     exception PositiveDefiniteException of string
     let notPosDef = PositiveDefiniteException("Matrix is not positive definite")
+
+    exception MaxIterationsException of string
+    let maxIter k = MaxIterationsException(sprintf "Maximum number of iterations exceeded: %i" k)

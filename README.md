@@ -16,6 +16,7 @@ Linear algebra for FSharp.
 - Ax=b solved by QR with implicit Q.T * b formation.
 
 ## Eigenvalues
+- QR Algorithm for Symmetric Positive Definite matrices
 
 ## Caveats
 Nothing here is meant to be quick. Performance is best in dedicated libraries such as BLAS, LAPACK, CudaToolkit, ...

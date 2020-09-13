@@ -11,7 +11,7 @@ module Constants =
 
     /// Calculates machine epsilon valid on the executing machine,
     /// representing the upper bound of the relative error due to rounding in floating-point arithmetic.
-    let calcMachEps =
+    let private calcMachEps =
         let rec inner e = if e + 1.0 <> 1.0 then inner (e/2.) else e
         inner 1e-4
 
@@ -20,11 +20,14 @@ module Constants =
 
     /// Relaxed tolerance threshold.
     /// Tolerance should be based on the condition number of the calculation.
-    let tol = machEps * 2.**20.
+    let tol = 1e-6
+    let tolStrict = machEps * 2.**8.
 
     let isZero x = abs x < tol
+    let isZeroStrict x = abs x < tolStrict
 
     let relEq x y = if isZero y then isZero x else (x-y) / y |> isZero
+    let relEqStrict x y = if isZeroStrict y then isZeroStrict x else (x-y) / y |> isZeroStrict
 
 [<AutoOpen>]
 module Utils =

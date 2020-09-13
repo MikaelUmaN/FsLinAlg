@@ -54,8 +54,12 @@ module ExpectoFsCheck =
         return! tallThinMatrixDim minTallThinN maxTallThinN tallThinMFactor
     }
 
+    let filterSmallFloats f = abs f > machEps || f = 0.
+
     let nonNegInt = Arb.generate<NonNegativeInt>
-    let nonNanFloat = Arb.generate<NormalFloat>
+    let nonNanFloat = 
+        Arb.generate<NormalFloat>
+        |> Gen.filter (fun (NormalFloat f) -> filterSmallFloats f)
 
     type MatrixGens =
         static member Vector() =
@@ -128,11 +132,14 @@ module ExpectoFsCheck =
             override x.Generator =
                 gen {
                     let! dim = smallMatrixDim
-                    let! vals = nonNanFloat |> Gen.array2DOfDim (dim, dim)
-                    let fvals = vals |> Array2D.map (fun v -> cdfn v.Get)
+                    let! vals = 
+                        nonNanFloat 
+                        |> Gen.map (fun v -> cdfn v.Get) 
+                        |> Gen.filter filterSmallFloats
+                        |> Gen.array2DOfDim (dim, dim)
                     
                     // Start from a random matrix.
-                    let A = Matrix(fvals)
+                    let A = Matrix(vals)
 
                     // Make it symmetric and diagonally dominant
                     // -> Positive Symmetric Definite

@@ -65,4 +65,10 @@ module Equation =
                         let Qtb, R = A.QRb b
                         let x = backSubstitute R Qtb
                         let ``b*`` = A * x |> Matrix.toVector
+                        let areEqual = ``b*`` = b
+                        if not areEqual then
+                            printfn "%A" ``b*``.Data
+                            printfn "%A" b.Data
+                            printfn "Where not equal"
+                        
                         Expect.equal ``b*`` b "b vectors are not equal" ] ]

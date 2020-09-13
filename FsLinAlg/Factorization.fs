@@ -26,7 +26,7 @@ module Factorization =
             P.[k, *] <- pp
 
             for j in k+1..m-1 do
-                if U.[k, k] = 0. then
+                if isZeroStrict U.[k, k] then
                      raise linDep
                 else
                     L.[j, k] <- U.[j, k] / U.[k, k]
@@ -45,7 +45,7 @@ module Factorization =
 
             // Forming R
             let uk =
-                if vk.Norm <> 0. then
+                if not <| isZeroStrict vk.Norm then
                     let u = vk / vk.Norm
                     let q = 2.*u*u.T
                     R.[k.., k..] <- R.[k.., k..] - q * R.[k.., k..]
@@ -108,7 +108,7 @@ module Factorization =
                 let vk = if sn < 0. then -1. * vt else vt
 
                 let uk = 
-                    if vk.Norm <> 0. then
+                    if not <| isZeroStrict vk.Norm then
                         let u = vk / vk.Norm
                         H.[k+1.., k..] <- H.[k+1.., k..] - 2.*u*(u.T*H.[k+1.., k..]) // Householder refl applied on the left.
                         let rs = if issym then k else 0
@@ -130,10 +130,10 @@ module Factorization =
 
         for k in 0..m-1 do
             for j in k+1..m-1 do
-                if R.[k, k] = 0. then
+                if isZeroStrict R.[k, k] then
                     raise notPosDef
                 R.[j, j..] <- R.[j, j..] - (R.[k, j]*R.[k, j..])/R.[k, k]
-            if R.[k, k] <= 0. then
+            if R.[k, k] <= 0. || isZeroStrict R.[k, k] then
                 raise notPosDef
             R.[k, k..] <- R.[k, k..]/sqrt(R.[k, k])   
         R

@@ -126,4 +126,12 @@ module Factorization =
                     let H, _ = A.Hessenberg
                     Expect.isTrue H.IsTridiagonal "Matrix is not tridiagonal"
             ]
+
+            testList "Bidiagonalization" [
+                testProp "Bidiagonal result" <| fun (Ar: TallThinMatrix) ->
+                        let (TallThinMatrix A) = Ar
+                        let B, _, _ = A.Bidiagonalize
+
+                        Expect.isTrue (B.IsBidiagonal()) "Matrix is not bidiagonal"
+            ]
         ]

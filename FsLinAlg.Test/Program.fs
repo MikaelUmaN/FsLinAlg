@@ -10,4 +10,7 @@ module Program =
 
     [<EntryPoint>]
     let main args =
-        runTestsInAssemblyWithCLIArgs [] args
+        runTestsInAssemblyWithCLIArgs [Sequenced] args
+
+        // Run specific tests.
+        //runTestsWithCLIArgs [] args Factorization.factorizationTests

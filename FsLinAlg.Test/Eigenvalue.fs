@@ -9,7 +9,7 @@ module Eigenvalue =
     let config = { FsCheckConfig.defaultConfig with maxTest = 10000 }
 
     [<Tests>]
-    let factorizationTests =
+    let eigenvalueTests =
         testList "Eigenvalue" [
             testList "Shifted QR" [
                 test "np.linalg.eig reference test" {
@@ -49,6 +49,21 @@ module Eigenvalue =
                     |> List.iter (fun (x, y) -> Expect.floatClose Accuracy.medium x y <| "Eigenvalues are not equal")                    
                 }
 
+                test "np.linalg.eig reference test 3" {
+                    let A = 
+                        [[|4.0; 1.0; 0.0|] |> Vector
+                         [|1.0; 3.0; 1.0|] |> Vector
+                         [|0.0; 1.0; 4.0|] |> Vector]
+                        |> Matrix.FromRowVectors
+                       
+                    let D, _ = A.Hessenberg // To tridiagonal form
+                    let eigs = ShiftedQR D None // To diagonal form
+
+                    let npeigs = [2.; 5.; 4.]
+                    List.zip eigs npeigs
+                    |> List.iter (fun (x, y) -> Expect.floatClose Accuracy.medium x y <| "Eigenvalues are not equal")
+                }
+
                 testProp "Trace of A = Sum of eigenvalues" <| fun (As: SymmetricPositiveDefiniteMatrix) ->
                     let (SymmetricPositiveDefiniteMatrix A) = As
                     let D, _ = A.Hessenberg // To tridiagonal form
@@ -58,4 +73,6 @@ module Eigenvalue =
 
                     Expect.floatClose Accuracy.medium sumeig trace "Trace did not equal the sum of eigenvalues"
             ]
+
+            //test
         ]

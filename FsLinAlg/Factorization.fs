@@ -121,6 +121,44 @@ module Factorization =
             let uks = triangulate 0 []
             H, uks
 
+    /// Reduction to bidiagonal form using Householder reflections for rectangular matrix A: m by n,
+    /// where m >= n. Returns the reduced matrix as well as vectors that can be used
+    /// to reconstruct Q.
+    let Bidiagonalize (A: Matrix) =
+        let B = A.Clone()
+        let n = B.N
+
+        let rec bidiagonalize k uks vks =
+            // Introduce zeros in column k.
+            let x = B.[k.., k]
+            let sn = float(sign x.[0])
+            let ut = sn * x.Norm * Vector.e 0 x.Length + x
+            let uk = if sn < 0. then -1. * ut else ut
+            let ukn = uk / uk.Norm
+
+            // U' * A
+            B.[k.., k..] <- B.[k.., k..] - 2.*ukn*(ukn.T*B.[k.., k..])
+
+            if k < n-2 then
+                // Introduce zeros in row k.
+                let y = B.[k, k+1..]
+                let sny = float(sign y.[0])
+                let vt = sny * y.Norm * Vector.e 0 y.Length + y
+                let vk = if sny < 0. then -1. * vt else vt
+                let vkn = vk / vk.Norm
+
+                // A * V
+                B.[k.., k+1..] <- B.[k.., k+1..] - (B.[k.., k+1..]*2.*vkn)*vkn.T
+
+                bidiagonalize (k+1) (uk::uks) (vk::vks)
+            elif k < n-1 then
+                bidiagonalize (k+1) (uk::uks) vks
+            else
+                (uk::uks), vks
+
+        let uks, vks = bidiagonalize 0 [] []
+        B, uks, vks
+
     /// A = R.T R
     /// Elimination on a symmetric matrix.
     /// Returns upper-triangular matrix R.
@@ -152,3 +190,5 @@ module Factorization =
         member this.Cholesky = Cholesky this
 
         member this.Hessenberg = Hessenberg this
+
+        member this.Bidiagonalize = Bidiagonalize this

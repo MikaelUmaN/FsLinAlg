@@ -1,10 +1,13 @@
 ﻿namespace FsLinAlg
 open System
+open MathNet.Numerics.Distributions
 
 /// Contains the fundamental datastructures.
 [<AutoOpen>]
 module DataStructure =
-    
+   
+    let private randnf = Normal(0., 1.)
+
     /// Vector that is either a column- or a row-vector.
     /// Provides a transpose operation to change the orientation.
     type Vector(data: float[], ?isColumnVector: bool) =
@@ -32,6 +35,10 @@ module DataStructure =
                 Matrix.FromRowVectors [this] 
             else 
                 Matrix.FromColumnVectors [this]
+
+        member this.AsUnitVector =
+            let n = this.Norm
+            this |> Vector.map (fun x -> x/n)
 
         /// Get/Set value by row.
         member _.Item
@@ -112,6 +119,7 @@ module DataStructure =
         static member findIndex pred (v: Vector) = v.Data |> Array.findIndex pred
         static member findMaxIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.max))
         static member findMinIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.min))
+        static member randn m = randnf.Samples() |> Seq.take m |> Seq.toArray |> Vector
 
         interface ICloneable with
             member this.Clone() =
@@ -126,6 +134,14 @@ module DataStructure =
         let m = Array2D.length1 data 
         let n = Array2D.length2 data
         
+        let (|Tall|Wide|Square|) (matrix: Matrix) = 
+            if matrix.IsTall then 
+                Tall
+            elif matrix.IsWide then
+                Wide
+            else
+                Square
+
         member _.M = Array2D.length1 data
         member _.N = Array2D.length2 data
         member _.Dimensions = (m, n)
@@ -151,6 +167,16 @@ module DataStructure =
                     let n = rows.[0].Length
                     let data = Array2D.init m n (fun i j -> rows.[i].[j]) 
                     Matrix(data)
+
+        static member CreateTridiagonal (subdiagonal: list<float>) (diagonal: list<float>) (superdiagonal: list<float>) =
+            let n = diagonal.Length
+            let d = Array2D.zeroCreate<float> n n
+            for i in 0..n-2 do
+                d.[i+1, i] <- subdiagonal.[i]  
+                d.[i, i] <- diagonal.[i]  
+                d.[i, i+1] <- superdiagonal.[i]
+            d.[n-1, n-1] <- diagonal.[n-1]
+            Matrix(d)
 
         static member I(dim) =
             let eye = Array2D.zeroCreate dim dim
@@ -265,23 +291,60 @@ module DataStructure =
 
         member this.IsSymmetric = this.IsSquare && this = this.T
 
+        /// If true, then M > N
+        member _.IsTall = m > n
+            
+        /// If true, then N > M
+        member _.IsWide = n > m
+
+        /// Generalized check for if this matrix is in hessenberg form.
+        /// Allows tall and wide matrices, surplus elements must be zero.
         member this.IsHessenberg(?u: bool) =
-            if this.IsSquare then
+            let cu = defaultArg u true
+            let d = if this.IsTall then n else m
 
-                let cu = defaultArg u true
-                
-                let idxs = 
-                    [for i in 2..m-1 -> 
-                        [for j in 0..i-2 -> 
-                            if cu then (i, j) else (j, i)]]
-                    |> List.collect (id)
-                
-                idxs
-                |> List.forall (fun (i, j) -> isZero data.[i, j])
-            else
-                false
+            let idxs = 
+                [for i in 2..d-1 -> 
+                    [for j in 0..i-2 -> 
+                        if cu then (i, j) else (j, i)]]
+                |> List.collect (id)
+            
+            let allIdxs =
+                if cu then 
+                    idxs 
+                else
+                    match this with
+                    | Square -> idxs
+                    | Tall ->
+                        let addIdx =
+                            [for i in n..m-1 ->
+                                [for j in 0..n-1 ->
+                                    (i, j)]]
+                            |> List.collect (id)
+                        List.concat [idxs; addIdx]
+                    | Wide ->
+                        let addIdx =
+                            [for i in 0..m-1 ->
+                                [for j in m..n-1 ->
+                                    (i, j)]]
+                            |> List.collect (id)
+                        List.concat [idxs; addIdx]
+            allIdxs
+            |> List.forall (fun (i, j) -> isZero data.[i, j])
 
+        /// Generalized check for tridiagonal matrices.
+        /// Allows tall and wide matrices, surplus elements must be zero.
         member this.IsTridiagonal = this.IsHessenberg() && this.IsHessenberg(false)
+
+        /// Generalized check for bidiagonal matrices.
+        /// Allows tall and wide matrices, surplus elements must be zero.
+        /// <param name="u">If true, then the check is for upper-bidiagonality (default=true).</param>
+        member this.IsBidiagonal(?u: bool) =
+            let cu = defaultArg u true
+            let isTri = this.IsTridiagonal
+            let (rShift, cShift) = if cu then (0, -1) else (-1, 0)
+            let idxs = [for i in 1..n-1 -> (i + rShift, i + cShift)]
+            isTri && idxs |> List.forall (fun (i, j) -> isZero data.[i, j])
 
         override this.Equals other =
             match other with

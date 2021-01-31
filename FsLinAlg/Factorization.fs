@@ -125,6 +125,8 @@ module Factorization =
     /// where m >= n. Returns the reduced matrix as well as vectors that can be used
     /// to reconstruct Q.
     let Bidiagonalize (A: Matrix) =
+        if not (A.M >= A.N) then raise <| invDimMsg $"Expected M >= N, but {A.M} <= {A.N}"
+
         let B = A.Clone()
         let n = B.N
 

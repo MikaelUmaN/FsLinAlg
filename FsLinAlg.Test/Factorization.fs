@@ -128,6 +128,22 @@ module Factorization =
             ]
 
             testList "Bidiagonalization" [
+
+                test "Golub, Van Loan 3rd Ed. p. 252 reference test" {
+                    let A = 
+                        [
+                            Vec [|1.;2.;3.|]
+                            Vec [|4.;5.;6.|]
+                            Vec [|7.;8.;9.|]
+                            Vec [|10.;11.;12.|]
+                        ]
+                        |> Matrix.FromRowVectors
+
+                    let B, _, _ = A.Bidiagonalize
+
+                    Expect.isTrue (B.IsBidiagonal()) "Matrix is not bidiagonal"
+                }
+
                 testProp "Bidiagonal result" <| fun (Ar: TallThinMatrix) ->
                         let (TallThinMatrix A) = Ar
                         let B, _, _ = A.Bidiagonalize

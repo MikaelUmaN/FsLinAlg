@@ -3,6 +3,33 @@ namespace FsLinAlg
 [<AutoOpen>]
 module Eigenvalue =
 
+    let wilkinsonShift (B: Matrix) =
+        let d = (B.[0, 0] - B.[1, 1]) / 2.
+        let ds = if d < 0. then -1. else 1.
+        B.[1, 1] - ds*B.[0, 1]**2. / (abs ds + sqrt(d**2. + B.[0, 1]**2.))
+
+    let SvdStep (A: Matrix) =
+        let B = A.Clone()
+        let n = B.N
+
+        // Eigenvalue estimate
+        let T = B.T * B // TODO: Make efficient
+        let mu = wilkinsonShift T.[T.M-2.., T.M-2..]
+        let y = T.[T.M-2, T.M-2] - mu
+        let z = T.[T.M-2, T.M-1]
+
+        let rec inner k =
+
+            // Right-side givens rotation.
+
+
+            if k = n-2 then
+                3
+            else inner (k+1)
+
+        inner 0
+
+
     /// QR Algorithm with shifts for revealing eigenvalues in
     /// the diagonal of the tridiagonal matrix S using
     /// similarity transforms.
@@ -11,11 +38,6 @@ module Eigenvalue =
             S.D
             |> Vector.toList
         else
-            let wilkinsonShift (B: Matrix) =
-                let d = (B.[0, 0] - B.[1, 1]) / 2.
-                let ds = if d < 0. then -1. else 1.
-                B.[1, 1] - ds*B.[0, 1]**2. / (abs ds + sqrt(d**2. + B.[0, 1]**2.))
-
             let maxItr = defaultArg maxIterOpt 10000
             let A = S.Clone()
 

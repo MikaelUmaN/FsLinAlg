@@ -11,6 +11,7 @@
     <Compile Include="MatrixType.fs" />
     <Compile Include="DataStructure.fs" />
     <Compile Include="Factorization.fs" />
+    <Compile Include="SpecializedStructure.fs" />
     <Compile Include="Equation.fs" />
     <Compile Include="Eigenvalue.fs" />
     <Compile Include="Program.fs" />

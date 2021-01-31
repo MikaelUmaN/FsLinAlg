@@ -54,12 +54,30 @@ module ExpectoFsCheck =
         return! tallThinMatrixDim minTallThinN maxTallThinN tallThinMFactor
     }
 
-    let filterSmallFloats f = abs f > machEps || f = 0.
+    let filterSmallFloatsExclZero f = abs f > machEps || f = 0.
+    let filterSmallFloats f = abs f > machEps
 
     let nonNegInt = Arb.generate<NonNegativeInt>
-    let nonNanFloat = 
+
+    type NonNanNonZeroFloat = NonNanNonZeroFloat of float with
+        member x.Get = match x with NonNanNonZeroFloat f -> f
+        override x.ToString() = x.Get.ToString()
+        static member op_Explicit(NormalFloat f) = f
+
+    let nonNanFloat =
+        Arb.generate<NormalFloat>
+        |> Gen.filter (fun (NormalFloat f) -> filterSmallFloatsExclZero f)
+
+    let nonNanNonZeroFloat = 
         Arb.generate<NormalFloat>
         |> Gen.filter (fun (NormalFloat f) -> filterSmallFloats f)
+        |> Gen.map (fun (NormalFloat f) -> NonNanNonZeroFloat(f))
+
+    type FloatGens =
+        static member NonNanNonZeroFloat() =
+            { new Arbitrary<NonNanNonZeroFloat>() with
+                override x.Generator = nonNanNonZeroFloat
+            }
 
     type MatrixGens =
         static member Vector() =
@@ -135,7 +153,7 @@ module ExpectoFsCheck =
                     let! vals = 
                         nonNanFloat 
                         |> Gen.map (fun v -> cdfn v.Get) 
-                        |> Gen.filter filterSmallFloats
+                        |> Gen.filter filterSmallFloatsExclZero
                         |> Gen.array2DOfDim (dim, dim)
                     
                     // Start from a random matrix.
@@ -163,6 +181,6 @@ module ExpectoFsCheck =
     let private config = { 
         FsCheckConfig.defaultConfig with 
             maxTest = 1000
-            arbitrary = [typeof<MatrixGens>] }
+            arbitrary = [typeof<MatrixGens>; typeof<FloatGens>]}
     
     let testProp name = testPropertyWithConfig config name

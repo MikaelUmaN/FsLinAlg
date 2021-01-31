@@ -7,6 +7,7 @@
     <Compile Include="Exceptions.fs" />
     <Compile Include="Constants.fs" />
     <Compile Include="DataStructure.fs" />
+    <Compile Include="SpecializedStructure.fs" />
     <Compile Include="Factorization.fs" />
     <Compile Include="Equation.fs" />
     <Compile Include="Eigenvalue.fs" />

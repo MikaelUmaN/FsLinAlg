@@ -31,7 +31,8 @@ let toDegrees c s =
 
 // gives back cos theta, sin theta
 let (c, s) = givensNumbers 2. 4.
-let (c1, s1) = givensNumbers 4. 2.
+let (c1, s1) = givensNumbers -4. 2.
+let (c2, s2) = givensNumbers -1. -2.
 
 let (thetaCc, thetaCs, thetaCcn, thetaCsn, thetaSc, thetaSs, thetaScn, thetaSsn) = toDegrees c s
 

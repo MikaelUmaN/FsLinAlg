@@ -12,7 +12,7 @@ module Program =
     let main args =
         
         // Normal run
-        //runTestsInAssemblyWithCLIArgs args
+        runTestsInAssemblyWithCLIArgs [] args
 
         // For easier debugging.
         //runTestsInAssemblyWithCLIArgs [Sequenced] args
@@ -22,4 +22,4 @@ module Program =
 
         //runTestsWithCLIArgs [Sequenced] args Factorization.factorizationTests
 
-        runTestsWithCLIArgs [Sequenced] args SpecializedStructure.specializedStructureTests
+        //runTestsWithCLIArgs [Sequenced] args SpecializedStructure.specializedStructureTests

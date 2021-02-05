@@ -30,7 +30,10 @@ module SpecializedStructure =
         G
 
     /// Returns numbers (c, s) to be used in a Givens rotation matrix.
-    /// asin s = acos c 
+    /// asin s = theta
+    /// acos c = theta
+    /// Note: acos and asin use a different reference for the angle so the value will only be the same
+    /// when they are in the first quadrant. 
     let givensNumbers a b =
         if b = 0. then
             (sign a |> float, 0.)

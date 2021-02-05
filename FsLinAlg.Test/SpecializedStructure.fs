@@ -13,14 +13,30 @@ module SpecializedStructure =
     [<Tests>]
     let specializedStructureTests =
         testList "Givens" [
-            testProp "acos c = asin s" <| fun (a: NonNanNonZeroFloat, b: NonNanNonZeroFloat) ->
+            testProp "Angles agree after reflection" <| fun (a: NonNanNonZeroFloat, b: NonNanNonZeroFloat) ->
+                let radianToDegree r =
+                    180./Math.PI * r
+
+                let degreeToRadian d =
+                    d * Math.PI/180.
+
                 let (c, s) = givensNumbers (a.Get) (b.Get)
                 let thetaC = acos c
                 let thetaS = asin s
 
-                // why not work...
-                if isZero (abs(thetaC - thetaS)) then
-                    Expect.equal thetaC thetaS "Theta angles do not agree"
-                else
-                    Expect.equal thetaC (Math.PI - thetaS) "Theta angles do not agree (shifted)"
+                let thetaCc = radianToDegree thetaC
+                let thetaSs =
+                    if c >= 0. && s >= 0. then
+                        // First quadrant.
+                        radianToDegree thetaS
+                    elif c < 0. && s >= 0. then
+                        // c in second quadrant, s in first.
+                        radianToDegree (Math.PI - thetaS)
+                    elif c < 0. && s < 0. then
+                        // c in second, s in third.
+                        radianToDegree (Math.PI + thetaS)
+                    else
+                        // c in first, s in third
+                        radianToDegree (-thetaS)
+                Expect.floatClose Accuracy.medium thetaCc thetaSs "Theta angles do not agree"
         ]

@@ -33,7 +33,8 @@ module SpecializedStructure =
     /// asin s = theta
     /// acos c = theta
     /// Note: acos and asin use a different reference for the angle so the value will only be the same
-    /// when they are in the first quadrant. 
+    /// when they are in the first quadrant.
+    /// Note: Does not follow Golub Van Loan 3rd Ed. Eq. 5.1.7, instead follows Wikipedia.
     let givensNumbers a b =
         if b = 0. then
             (sign a |> float, 0.)
@@ -49,3 +50,10 @@ module SpecializedStructure =
             let u = (sign b |> float) * sqrt(1. + t**2.)
             let s = 1./u
             (s*t, s)
+
+    /// Returns a given rotation matrix.
+    /// Note: Does not follow Golub Van Loan 3rd Ed. Eq. 5.1.7, instead follows Wikipedia.
+    /// They are equivalent up to a transpose operation.
+    let givensMatrix n i k a b =
+        let (c, s) = givensNumbers a b
+        givens n i k c s

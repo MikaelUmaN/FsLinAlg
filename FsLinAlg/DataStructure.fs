@@ -130,7 +130,6 @@ module DataStructure =
 
     /// Row-major matrix of size m (rows) by n (columns).
     and Matrix(data: float[,]) =
-        
         let m = Array2D.length1 data 
         let n = Array2D.length2 data
         
@@ -345,6 +344,18 @@ module DataStructure =
             let (rShift, cShift) = if cu then (0, -1) else (-1, 0)
             let idxs = [for i in 1..n-1 -> (i + rShift, i + cShift)]
             isTri && idxs |> List.forall (fun (i, j) -> isZero data.[i, j])
+
+        member this.IsOrthogonal =
+            if m <> n then
+                false
+            else
+                seq { 
+                    for i in 0..m-2 do
+                        for j in i+1..n-1 do
+                            yield (this.[i, *] *+ this.[j, *])
+                }
+                |> Seq.toList
+                |> List.forall isZero
 
         override this.Equals other =
             match other with

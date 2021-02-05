@@ -3,32 +3,55 @@ namespace FsLinAlg
 [<AutoOpen>]
 module Eigenvalue =
 
-    let wilkinsonShift (B: Matrix) =
-        let d = (B.[0, 0] - B.[1, 1]) / 2.
+    /// Numerically stable computation of eigenvalue closer to T.[1, 1] from Trefethen, Bau p. 222
+    /// [a(m-1) b(m-1)
+    ///  b(m-1) a(m)]
+    let wilkinsonShift (T: Matrix) =
+        let d = (T.[0, 0] - T.[1, 1]) / 2.
+        // If zero, arbitrarily set to one
         let ds = if d < 0. then -1. else 1.
-        B.[1, 1] - ds*B.[0, 1]**2. / (abs ds + sqrt(d**2. + B.[0, 1]**2.))
-
+        T.[1, 1] - ds*T.[0, 1]**2. / (abs ds + sqrt(d**2. + T.[0, 1]**2.))
+        
     let SvdStep (A: Matrix) =
         let B = A.Clone()
+        let m = B.M
         let n = B.N
 
-        // Eigenvalue estimate
-        let T = B.T * B // TODO: Make efficient
-        let mu = wilkinsonShift T.[T.M-2.., T.M-2..]
-        let y = T.[T.M-2, T.M-2] - mu
-        let z = T.[T.M-2, T.M-1]
-
-        let rec inner k =
-
+        let rec inner (B: Matrix) y z k (Uts: Matrix list) (Vs: Matrix list) =
             // Right-side givens rotation.
+            let V = givensMatrix n k (k+1) y z 
+            let BV = B * V.T
 
+            // Left-side givens rotation
+            let y = BV.[k, k]
+            let z = BV.[k+1, k]
+            let Ut = givensMatrix m k (k+1) y z
+            let UtBV = Ut * BV
 
-            if k = n-2 then
-                3
-            else inner (k+1)
+            if k < n-2 then
+                let y = UtBV.[k, k+1]
+                let z = UtBV.[k, k+2]
+                inner UtBV y z (k+1) (Ut::Uts) (V::Vs)
+            else
+                UtBV, (Ut::Uts), (V::Vs)
 
-        inner 0
+        // Eigenvalue estimate
+        let T = 
+            let a = B.[m-1, m-1]**2. + B.[m-2, m-1]
+            let b = B.[m-1, m-1]*B.[m-2, m-1] 
+            array2D [[ a; b ]; [b; a]]
+            |> Matrix
+        let mu = wilkinsonShift T
+        let y = T.[0, 0] - mu
+        let z = T.[0, 1]
 
+        let UtBV, Uts, Vs = inner B y z 0 [] []
+
+        let I = Matrix.I m
+        let Ut = List.fold (fun (U: Matrix) (ut: Matrix) -> ut * U) I Uts
+        let V = List.fold (fun (V: Matrix) (v: Matrix) -> V * v) I Vs
+
+        UtBV, Ut, V
 
     /// QR Algorithm with shifts for revealing eigenvalues in
     /// the diagonal of the tridiagonal matrix S using

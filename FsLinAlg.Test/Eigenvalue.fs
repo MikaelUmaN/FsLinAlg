@@ -11,6 +11,15 @@ module Eigenvalue =
     [<Tests>]
     let eigenvalueTests =
         testList "Eigenvalue" [
+            testList "Svd" [
+                testProp "Svd step yields orthogonal U and V" <| fun (Bs: BidiagonalMatrix) ->
+                        let (BidiagonalMatrix B) = Bs
+                        let _, U, V = SvdStep B
+
+                        Expect.isTrue U.IsOrthogonal "Matrix U is not orthogonal"
+                        Expect.isTrue V.IsOrthogonal "Matrix V is not orthogonal"
+            ]
+
             testList "Shifted QR" [
                 test "np.linalg.eig reference test" {
 

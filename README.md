@@ -16,6 +16,7 @@ Linear algebra for FSharp.
 - Ax=b solved by QR with implicit Q.T * b formation.
 
 ## Eigenvalues
+- Svd Algorithm for singular values
 - QR Algorithm for Symmetric Positive Definite matrices
 
 ## Caveats
@@ -23,7 +24,9 @@ Nothing here is meant to be quick. Performance is best in dedicated libraries su
 
 The plan is to add integrations to those backends and let F# be the nice, front interface.
 
+Til then, this library can be used for educational purposes.
+
 ## References
 - Lloyd N. Trefethen, David Bau, III; Numerical Linear Algebra
-
+- Golub, Van-Loan; Matrix Computations
 

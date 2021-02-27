@@ -26,6 +26,9 @@ module Constants =
     let isZero x = abs x < tol
     let isZeroStrict x = abs x < tolStrict
 
+    let lessThan x y = x < tol * y
+    let lessThanStrict x y = x < tol * tolStrict
+
     let relEq x y = if isZero y then isZero x else (x-y) / y |> isZero
     let relEqStrict x y = if isZeroStrict y then isZeroStrict x else (x-y) / y |> isZeroStrict
 

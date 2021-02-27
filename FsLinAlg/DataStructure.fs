@@ -345,6 +345,10 @@ module DataStructure =
             let idxs = [for i in 1..n-1 -> (i + rShift, i + cShift)]
             isTri && idxs |> List.forall (fun (i, j) -> isZero data.[i, j])
 
+        member this.IsDiagonal =
+            let minDim = min n m
+            this.IsBidiagonal() && [for i in 0..minDim-2 -> isZero data.[i, i+1]] |> List.forall id
+
         member this.IsOrthogonal =
             if m <> n then
                 false

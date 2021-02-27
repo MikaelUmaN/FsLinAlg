@@ -23,3 +23,5 @@ module Program =
         //runTestsWithCLIArgs [Sequenced] args Factorization.factorizationTests
 
         //runTestsWithCLIArgs [Sequenced] args SpecializedStructure.specializedStructureTests
+
+        //runTestsWithCLIArgs [Sequenced] args Eigenvalue.eigenvalueTests

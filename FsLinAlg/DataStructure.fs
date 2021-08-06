@@ -383,7 +383,8 @@ module DataStructure =
         static member (*) (x: float, M: Matrix) = M * x
         static member (/) (M: Matrix, x: float) =
             M.Data |> Array2D.map (fun y -> y / x) |> Matrix
-        static member (/) (x: float, M: Matrix) = M / x
+        static member (/) (x: float, M: Matrix) =
+            M.Data |> Array2D.map (fun y -> x / y) |> Matrix
 
         /// Matrix-matrix ops
         static member (*) (A: Matrix, B: Matrix) =

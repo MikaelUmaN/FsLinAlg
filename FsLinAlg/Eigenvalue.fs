@@ -71,8 +71,10 @@ module Eigenvalue =
         let B = A.Clone()
         let m = B.M
         let n = B.N
+        let Ut = Matrix.I m
+        let V = Matrix.I n
 
-        let rec inner (B: Matrix) =
+        let rec inner (B: Matrix) (Ut: Matrix) (V: Matrix) =
 
             // Zero any superdiagonal element that is negligible compared to its closest diagonal elements.
             for i in 0..n-2 do
@@ -81,47 +83,89 @@ module Eigenvalue =
                 
             // Find the largest diagonal from the bottom-right. Base case is a complete diagonal matrix,
             // in which case we are done.
-            let qOpt = ([n-2..-1..0] |> List.tryFindIndex (fun i -> not (isZero B.[i, i+1])))
-            let q = (if qOpt.IsSome then qOpt.Value else n-1)
-            if q = n-1 then
-                B
+            let qOpt = ([n-2..-1..0] |> List.tryFind (fun i -> not (isZero B.[i, i+1])))
+            let q = (if qOpt.IsSome then qOpt.Value + 1 else 0)
+            if q = 0 then
+                B, Ut, V
             else
 
                 // Find the smallest diagonal from the top-left. Base case is a size zero matrix.
-                let pOpt = [0..n-1-q] |> List.tryFindIndex (fun i -> not (isZero B.[i, i+1]))
+                let pOpt = [0..q] |> List.tryFind (fun i -> not (isZero B.[i, i+1]))
                 let p = if pOpt.IsSome then pOpt.Value else 0
 
                 // B22 matrix. Must have non-zero superdiagonal.
-                let bs = p
-                let be = n-1-q
-                let Bd = B.[bs..be, bs..be]
+                let Bd = B.[p..q, p..q]
 
                 // Zero any superdiagonal element if the diagonal element is zero.
-                // TODO: need to collect matrices here...
-                let zeroRow (B22: Matrix) (i: int) =
-                    List.fold (fun (GB: Matrix) k -> (givensMatrix B22.N i k GB.[k, k] GB.[i, k]).T * GB) B22 [i+1..B22.N]
-                let zeroLastColumn (B22: Matrix) =
-                    List.fold (fun (BG: Matrix) k -> BG * (givensMatrix B22.N (B22.N-k) (B.N-1) BG.[B22.N-k, B22.N-k] BG.[B22.N-k, B22.N-1]).T) B22 [2..B22.N]   
-
-                let zeroDiagOpt = [0..Bd.N-1] |> List.tryFindIndex (fun i -> isZero Bd.[i, i])
+                let zeroDiagOpt = [0..Bd.N-1] |> List.tryFind (fun i -> isZero Bd.[i, i])
                 match zeroDiagOpt with
                 | Some(i) ->
-                    let GBd = if i = Bd.N-1 then Bd else zeroRow Bd i
-                    B.[bs..be, bs..be] <- GBd
-                    inner B
-                | None ->
-                    let UtBV, Ut, V = SvdStep Bd
-                    B.[bs..be, bs..be] <- UtBV
-                    inner B
-                    //let UIT = Matrix.I B.N
-                    //for i in bs..be do
-                    //    UIT.[i, i] <- Ut.[i-bs, i-bs]
-                    //let VI = Matrix.I B.N
-                    //for i in bs..be do
-                    //    VI.[i, i] <- V.[i-bs, i-bs]
-                    //let Bb = UIT * B * VI
+                    // Zeros the entire row, because zeroing one element affects the nearby element
+                    // on the same row.
+                    let zeroRow (B22: Matrix) (i: int) =
+                        List.fold (fun (GB: Matrix, Us: List<Matrix>) k -> 
+                            let U = givensMatrix B22.N i k GB.[k, k] GB.[i, k] 
+                            (U.T * GB, U::Us)) (B22, []) [i+1..B22.N-1]
 
-        inner B
+                    // Zeros the entire column, because zeroing one element offsets the nearby element
+                    // on the same column.
+                    let zeroColumn (B22: Matrix) (k: int) =
+                        List.fold (fun (BG: Matrix, Vs: List<Matrix>) i -> 
+                            let V = givensMatrix B22.N i k BG.[i, i] BG.[i, k] 
+                            (BG * V.T, V.T::Vs)) (B22, []) [k-1..-1..0]
+
+                    if i = Bd.N-1 then
+                        let BdG, Vs = zeroColumn Bd i
+                        B.[p..q, p..q] <- BdG
+
+                        // Accumulate givens matrices (G1 * G2 * G3) to represent the operation:
+                        // B22 * G1 * G2 * G3
+                        let Vd = List.fold (fun (V: Matrix) (v: Matrix) -> V * v) (Matrix.I Bd.N) (Vs |> List.rev)
+
+                        // Translate to full dimension.
+                        let Vb = Matrix.I V.M
+                        Vb.[p..q, p..q] <- Vd
+
+                        inner B Ut (V * Vb)
+                    else
+                        let GBd, Us = zeroRow Bd i
+                        B.[p..q, p..q] <- GBd
+
+                        // Accumulate givens matrices (G1 * G2 * G3) and transpose to represent the operation:
+                        // G3' * G2' * G1' * B22
+                        let Utd = (List.fold (fun (U: Matrix) (u: Matrix) -> u * U) (Matrix.I Bd.M) Us).T
+
+                        // Translate to full dimension.
+                        let Utb = Matrix.I Ut.M
+                        Utb.[p..q, p..q] <- Utd
+
+                        inner B (Utb * Ut) V
+                | None ->
+                    let UtBV, Utd, Vd = SvdStep Bd
+                    B.[p..q, p..q] <- UtBV
+
+                    // Translate to full dimension.
+                    let Utb = Matrix.I Ut.M
+                    Utb.[p..q, p..q] <- Utd
+                    let Vb = Matrix.I V.M
+                    Vb.[p..q, p..q] <- Vd
+
+                    inner B (Utb * Ut) (V * Vb)
+
+        inner B Ut V
+
+    /// Svd algorithm following Golub-Kahan.
+    let Svd (A: Matrix) =
+        let B = A.Clone()
+        let m = B.M
+        let n = B.N
+
+        // Bidiagonalize.
+        let Bd, Ua, Va = Bidiagonalize B
+        let U = Ua.Accumulate
+        let V = Va.Accumulate
+        
+        0
 
     /// QR Algorithm with shifts for revealing eigenvalues in
     /// the diagonal of the tridiagonal matrix S using

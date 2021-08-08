@@ -2,6 +2,10 @@
 open System
 open MathNet.Numerics.Distributions
 
+// Suppress: Consider implementing a matching override for 'Object.GetHashCode()'
+// Because it will be too slow for vector and matrix implementations.
+#nowarn "0346"
+
 /// Contains the fundamental datastructures.
 [<AutoOpen>]
 module DataStructure =
@@ -46,6 +50,9 @@ module DataStructure =
                 data.[row]
             and set(row) x =
                 data.[row] <- x
+
+        member _.GetReverseIndex(dim: int, offset: int) = 
+            data.GetReverseIndex(dim, offset)
 
         /// Column vector slices.
         member this.GetSlice(sr, er) =
@@ -107,6 +114,7 @@ module DataStructure =
             d.[i] <- 1.
             Vector(d)
 
+        static member concat (vs: seq<Vector>) = vs |> Seq.map (fun v -> v.Data) |> Array.concat |> Vector
         static member exists pred (v: Vector) = v.Data |> Array.exists pred
         static member toList (v: Vector) = v.Data |> Array.toList
         static member toArray (v: Vector) = v.Data
@@ -126,7 +134,6 @@ module DataStructure =
                 this.Data |> Array.copy |> Vector :> obj
 
         member this.Clone() = (this :> ICloneable).Clone() :?> Vector
-
 
     /// Row-major matrix of size m (rows) by n (columns).
     and Matrix(data: float[,]) =
@@ -193,6 +200,9 @@ module DataStructure =
                 data.[row, column]
             and set(row, column) x =
                 data.[row, column] <- x
+
+        member _.GetReverseIndex(dim: int, offset: int) = 
+            data.GetReverseIndex(dim, offset)
 
         /// Sub-matrices.
         member _.GetSlice(sr, er, sc, ec) =
@@ -406,11 +416,16 @@ module DataStructure =
 
         static member (*) (M: Matrix, v: Vector) = M * v.AsMatrix
 
+        static member iter f (M: Matrix) = M.Data |> Array2D.iter f
         static member map f (M: Matrix) = M.Data |> Array2D.map f |> Matrix
+        static member forall f (M: Matrix) =
+            M.Data |> Seq.cast<float>
+            |> Seq.forall f
         static member toVector (M: Matrix) = M.AsVector
         static member toScalar (M: Matrix) = M.AsScalar
         static member lpq p q (M: Matrix) = M.Lpq p q
         static member frobeniusNorm (M: Matrix) = M.FrobeniusNorm
+        static member abs (M: Matrix) = M |> Matrix.map abs
 
         interface ICloneable with
             member this.Clone() =
@@ -425,3 +440,18 @@ module DataStructure =
 
     type Mat = Matrix
 
+    /// Data structure for accumulation of Householder vectors.
+    /// Accepts a list of vectors, each vector is used once in the accumulation.
+    /// Optionally accepts the size of the Householder matrix, else it is inferred from the largest vector.
+    /// The vectors are supplied in the order from smallest to largest.
+    type HouseholderAccumulation(vs: List<Vector>, ?N: int) =
+        let r = vs.Length
+        let n = if N.IsNone then vs.[^0].Length else N.Value
+
+        /// Accumulates the vectors into the full matrix representation.
+        member _.Accumulate =
+            let Q = Matrix.I n
+            for j in 0..r-1 do
+                let v = vs.[j]
+                Q.[^j+1.., ^j+1..]  <- (Matrix.I (j+2) - 2.*v*v.T) * Q.[^j+1.., ^j+1..]
+            Q

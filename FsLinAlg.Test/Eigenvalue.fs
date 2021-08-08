@@ -21,7 +21,7 @@ module Eigenvalue =
                          [|0.0; 0.0; 0.0; 4.0|] |> Vector]
                         |> Matrix.FromRowVectors
                     
-                    let D = SvdSteps A // To tridiagonal form
+                    let D, Ut, V = SvdSteps A // To tridiagonal form
                     let s = 
                         D.D.Data 
                         |> Array.toList
@@ -32,14 +32,33 @@ module Eigenvalue =
                     |> List.iter (fun (x, y) -> Expect.floatClose Accuracy.medium x y <| "Singular values are not equal")                    
                 }
 
-                test "np.linalg.svd reference test" {
+                test "np.lingalg.svd reference test with diagonal zero element" {
+                    let A =
+                        [[|1.; 1.; 0.; 0.|] |> Vector
+                         [|0.; 2.; 1.; 0.|] |> Vector
+                         [|0.; 0.; 0.; 1.|] |> Vector
+                         [|0.; 0.; -0.; -4.|] |> Vector]
+                        |> Matrix.FromRowVectors
+
+                    let D, Ut, V = SvdSteps A
+                    let s = 
+                        D.D.Data 
+                        |> Array.toList
+                        |> List.sortDescending
+
+                    let nps = [4.12310563; 2.44948974; 1.; 0.]
+                    List.zip s nps
+                    |> List.iter (fun (x, y) -> Expect.floatClose Accuracy.medium x y <| "Singular values are not equal")  
+                }
+
+                test "np.linalg.svd eigenvalue reference test" {
                     let A =
                         [[|1.0; 0.0; 0.0|] |> Vector
                          [|0.0; 1.0; -0.81|] |> Vector
                          [|0.0; 0.0; 1.0|] |> Vector]
                         |> Matrix.FromRowVectors
                     
-                    let D = SvdSteps A // To tridiagonal form
+                    let D, Ut, V = SvdSteps A
                     let s = 
                         D.D.Data 
                         |> Array.toList
@@ -50,18 +69,30 @@ module Eigenvalue =
                     |> List.iter (fun (x, y) -> Expect.floatClose Accuracy.medium x y <| "Singular values are not equal")                    
                 }
 
-                testProp "Svd step yields orthogonal U and V" <| fun (Bs: BidiagonalMatrix) ->
-                    let (BidiagonalMatrix B) = Bs
-                    let _, U, V = SvdStep B
+                test "Golub-Kahan 3rd ed. p. 252 reference test" {
+                    let A =
+                        [[|1.0; 2.0; 3.0|] |> Vector
+                         [|4.0; 5.0; 6.0 |] |> Vector
+                         [|7.0; 8.0; 9.0|] |> Vector
+                         [|10.0; 11.0; 12.0|] |> Vector]
+                        |> Matrix.FromRowVectors
+                    
+                    //let B = Svd A
+                    
+                    Expect.isTrue true "invalid"
+                }
 
-                    Expect.isTrue U.IsOrthogonal "Matrix U is not orthogonal"
+                testProp "Svd on bidiagonal matrix yields diagonal D and orthogonal U and V with D + E =  U' * B * V" <| fun (Bs: BidiagonalMatrix) ->
+                    let (BidiagonalMatrix B) = Bs
+                    let D, Ut, V = SvdSteps B
+
+                    Expect.isTrue Ut.IsOrthogonal "Matrix U is not orthogonal"
                     Expect.isTrue V.IsOrthogonal "Matrix V is not orthogonal"
-
-                testProp "Svd steps yield diagonal matrix" <| fun (Bs: BidiagonalMatrix) ->
-                    let (BidiagonalMatrix B) = Bs
-                    let D = SvdSteps B
-
                     Expect.isTrue D.IsDiagonal "Matrix D is not diagonal"
+
+                    let D2 = Ut * B * V
+                    let diff = D - D2 //TODO: Tolerance based on frobenius norm as stated on p.455 Golub Van-Loan 3rd Ed.
+                    diff |> Matrix.iter (fun f -> Expect.isTrue (f < 1e-3) "D-D2 element expected to be zero")
             ]
 
             testList "Shifted QR" [

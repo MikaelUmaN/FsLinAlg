@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
+    <NoWarn>0049</NoWarn> <!-- Uppercase variable identifiers are standard for linear algebra software. -->
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FsLinAlg\FsLinAlg.fsproj" />

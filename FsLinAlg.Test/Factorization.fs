@@ -139,9 +139,19 @@ module Factorization =
                         ]
                         |> Matrix.FromRowVectors
 
-                    let B, _, _ = A.Bidiagonalize
+                    let B, Ua, Va = A.Bidiagonalize
 
                     Expect.isTrue (B.IsBidiagonal()) "Matrix is not bidiagonal"
+
+                    let U = Ua.Accumulate
+                    let V = Va.Accumulate
+
+                    Expect.isTrue (U.IsOrthogonal) "Matrix U is not orthogonal"
+                    Expect.isTrue (V.IsOrthogonal) "Matrix V is not orthogonal"
+
+                    // Reconstitute B.
+                    let Bd = U.T * A * V
+                    Expect.equal Bd B "Bidiagonal matrix could not be created from Householder matrices"
                 }
 
                 testProp "Bidiagonal result" <| fun (Ar: TallThinMatrix) ->

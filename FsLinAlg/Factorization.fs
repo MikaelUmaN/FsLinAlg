@@ -122,8 +122,8 @@ module Factorization =
             H, uks
 
     /// Reduction to bidiagonal form using Householder reflections for rectangular matrix A: m by n,
-    /// where m >= n. Returns the reduced matrix as well as vectors that can be used
-    /// to reconstruct Q.
+    /// where m >= n. Returns the matrix B along with U and V such that B = U' * A * V.
+    /// U and V are represented as Householder accumulators that can be materialized as desired.
     let Bidiagonalize (A: Matrix) =
         if A.M < A.N then raise <| invDimMsg $"Expected M >= N, but {A.M} <= {A.N}"
 
@@ -152,14 +152,16 @@ module Factorization =
                 // A * V
                 B.[k.., k+1..] <- B.[k.., k+1..] - (B.[k.., k+1..]*2.*vkn)*vkn.T
 
-                bidiagonalize (k+1) (uk::uks) (vk::vks)
+                bidiagonalize (k+1) (ukn::uks) (vkn::vks)
             elif k < n-1 then
-                bidiagonalize (k+1) (uk::uks) vks
+                bidiagonalize (k+1) (ukn::uks) vks
             else
-                (uk::uks), vks
+                (ukn::uks), vks
 
         let uks, vks = bidiagonalize 0 [] []
-        B, uks, vks
+        let U = HouseholderAccumulation uks
+        let V = HouseholderAccumulation(vks, n)
+        B, U, V
 
     /// A = R.T R
     /// Elimination on a symmetric matrix.

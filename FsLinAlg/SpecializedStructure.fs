@@ -21,13 +21,12 @@ module SpecializedStructure =
         if k <= i then
             raise <| ArgumentException($"k must be strictly larger than i, but {i} >= {k}")
         else
-
-        let G = Matrix.I n
-        G.[i, i] <- c
-        G.[k, k] <- c
-        G.[i, k] <- s
-        G.[k, i] <- -s
-        G
+            let G = Matrix.I n
+            G.[i, i] <- c
+            G.[k, k] <- c
+            G.[i, k] <- s
+            G.[k, i] <- -s
+            G
 
     /// Returns numbers (c, s) to be used in a Givens rotation matrix.
     /// asin s = theta

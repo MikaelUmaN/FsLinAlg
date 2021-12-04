@@ -10,7 +10,7 @@ module Eigenvalue =
         let d = (T.[0, 0] - T.[1, 1]) / 2.
         // If zero, arbitrarily set to one
         let ds = if d < 0. then -1. else 1.
-        T.[1, 1] - ds*T.[0, 1]**2. / (abs ds + sqrt(d**2. + T.[0, 1]**2.))
+        T.[1, 1] - ds*T.[1, 0]**2. / (abs d + sqrt(d**2. + T.[1, 0]**2.))
         
     /// Finds eigenvalue of symmetric 2 by 2 matrix that is closer to T.[1, 1].
     /// Uses characteristic polynomial
@@ -50,12 +50,12 @@ module Eigenvalue =
             if m = 2 && n = 2 then
                 B.T * B
             else
-                let t11 = B.[n-2, n-2]**2. + B.[n-3, n-2]
-                let t = B.[n-2, n-2]*B.[n-2, n-1]
-                let t22 = B.[n-1, n-1]**2. + B.[n-2, n-1] 
+                let t11 = B.[n-2, n-2]**2. + B.[n-3, n-2]**2.
+                let t = B.[n-2, n-2] * B.[n-2, n-1]
+                let t22 = B.[n-1, n-1]**2. + B.[n-2, n-1]**2.
                 array2D [[ t11; t ]; [t; t22]]
                 |> Matrix
-        let mu = wilkinsonShift T
+        let mu = wilkinsonShift T // Wilkinsonshift is defined as the eigenvalue closer to t22.
         let y = T.[0, 0] - mu
         let z = T.[0, 1]
 
@@ -78,7 +78,7 @@ module Eigenvalue =
 
             // Zero any superdiagonal element that is negligible compared to its closest diagonal elements.
             for i in 0..n-2 do
-                if lessThan (abs(B.[i, i+1])) (abs(B.[i, i]) + abs(B.[i+1, i+1])) then
+                if insignificantComparedTo (abs(B.[i, i+1])) (abs(B.[i, i]) + abs(B.[i+1, i+1])) then
                     B.[i, i+1] <- 0.
                 
             // Find the largest diagonal from the bottom-right. Base case is a complete diagonal matrix,
@@ -144,13 +144,8 @@ module Eigenvalue =
                     let UtBV, Utd, Vd = SvdStep Bd
                     B.[p..q, p..q] <- UtBV
 
-                    // Translate to full dimension.
-                    let Utb = Matrix.I Ut.M
-                    Utb.[p..q, p..q] <- Utd
-                    let Vb = Matrix.I V.M
-                    Vb.[p..q, p..q] <- Vd
-
-                    inner B (Utb * Ut) (V * Vb)
+                    // TODO: accumulate U, V
+                    inner B Ut V
 
         inner B Ut V
 
@@ -160,12 +155,24 @@ module Eigenvalue =
         let m = B.M
         let n = B.N
 
+        if m < n then raise <| invDimMsg $"M must be >= N but was: {m} < {n}"
+
         // Bidiagonalize.
-        let Bd, Ua, Va = Bidiagonalize B
-        let U = Ua.Accumulate
-        let V = Va.Accumulate
+        let Ba, Ua, Va = Bidiagonalize B
+        let Ub = Ua.Accumulate
+        let Vb = Va.Accumulate
+
+        // Skip superflous zeros.
+        let Bb = Ba.[..n-1, ..n-1]
         
-        0
+        // Find singular values from bidiagonal matrix.
+        let D, Ud, Vd = SvdSteps Bb
+
+        // Form full left and right singular vectors.
+        let Ut = Ud * Ub
+        let V = Vb * Vd
+
+        D, Ut, V
 
     /// QR Algorithm with shifts for revealing eigenvalues in
     /// the diagonal of the tridiagonal matrix S using

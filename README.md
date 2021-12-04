@@ -28,5 +28,5 @@ Til then, this library can be used for educational purposes.
 
 ## References
 - Lloyd N. Trefethen, David Bau, III; Numerical Linear Algebra
-- Golub, Van-Loan; Matrix Computations
+- Golub, Van Loan; Matrix Computations
 

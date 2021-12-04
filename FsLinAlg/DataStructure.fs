@@ -276,6 +276,14 @@ module DataStructure =
             [| for i in 0..d-1 -> data.[i, i] |]
             |> Vector
 
+        /// The diagonal of the matrix, as a matrix.
+        member _.Diagonal =
+            let d = min m n |> int
+            let dd = Array2D.zeroCreate d d
+            for i in 0..d-1 do
+                dd.[i, i] <- data.[i, i]
+            Matrix dd
+
         /// Returns a clone matrix that is upper triangular (diagonal included).
         member this.UpperTriangular =
             let (A: Matrix) = this.Clone()

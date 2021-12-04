@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
     <NoWarn>0049</NoWarn> <!-- Uppercase variable identifiers are standard for linear algebra software. -->
   </PropertyGroup>
   <ItemGroup>

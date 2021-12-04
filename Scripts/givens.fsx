@@ -1,4 +1,4 @@
-#r "../FsLinAlg/bin/Debug/net5.0/FsLinAlg.dll"
+#r "../FsLinAlg/bin/Debug/net6.0/FsLinAlg.dll"
 
 open System
 open FsLinAlg

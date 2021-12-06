@@ -22,6 +22,10 @@ module Eigenvalue =
         else
             r2
 
+    /// Takes one step in the Svd algorithm whereby A is being diagonlized.
+    /// We are implicitly operating on the tridiagonal matrix A'A.
+    /// <param name="A">Bidiagonal Matrix m by n with m >= n.</param>
+    /// <returns>Triple of matrices U' * A * V, U', V</returns>
     let SvdStep (A: Matrix) =
         let B = A.Clone()
         let m = B.M
@@ -55,7 +59,7 @@ module Eigenvalue =
                 let t22 = B.[n-1, n-1]**2. + B.[n-2, n-1]**2.
                 array2D [[ t11; t ]; [t; t22]]
                 |> Matrix
-        let mu = wilkinsonShift T // Wilkinsonshift is defined as the eigenvalue closer to t22.
+        let mu = wilkinsonShift T // Wilkinson shift is defined as the eigenvalue closer to t22.
         let y = T.[0, 0] - mu
         let z = T.[0, 1]
 
@@ -67,7 +71,7 @@ module Eigenvalue =
 
         UtBV, Ut, V
 
-    let SvdSteps (A: Matrix) =
+    let rec SvdSteps (A: Matrix) =
         let B = A.Clone()
         let m = B.M
         let n = B.N
@@ -100,56 +104,51 @@ module Eigenvalue =
                 let zeroDiagOpt = [0..Bd.N-1] |> List.tryFind (fun i -> isZero Bd.[i, i])
                 match zeroDiagOpt with
                 | Some(i) ->
-                    // Zeros the entire row, because zeroing one element affects the nearby element
-                    // on the same row.
-                    let zeroRow (B22: Matrix) (i: int) =
-                        List.fold (fun (GB: Matrix, Us: List<Matrix>) k -> 
-                            let U = givensMatrix B22.N i k GB.[k, k] GB.[i, k] 
-                            (U.T * GB, U::Us)) (B22, []) [i+1..B22.N-1]
+                    // This addresses into B rather than Bd.
+                    let k = i + p
 
-                    // Zeros the entire column, because zeroing one element offsets the nearby element
-                    // on the same column.
-                    let zeroColumn (B22: Matrix) (k: int) =
-                        List.fold (fun (BG: Matrix, Vs: List<Matrix>) i -> 
-                            let V = givensMatrix B22.N i k BG.[i, i] BG.[i, k] 
-                            (BG * V.T, V.T::Vs)) (B22, []) [k-1..-1..0]
+                    let Utb, Vb =
+                        if i = Bd.N-1 then
+                            let BG, Vd = zeroColumn B k
+                            B.[*, *] <- BG
+                            Ut, (V * Vd)
+                        else
+                            let GB, Utd = zeroRow B k
+                            B.[*, *] <- GB
+                            (Utd * Ut), V
 
-                    if i = Bd.N-1 then
-                        let BdG, Vs = zeroColumn Bd i
-                        B.[p..q, p..q] <- BdG
+                    if k = B.N-1 || k = 0 then
+                        // Upper left diagonal element is zero, or lower right diagonal element is zero, 
+                        // no need to decouple into sub-problems.
+                        // The next iteration, this part will be in the (diagonal) B33 matrix.
 
-                        // Accumulate givens matrices (G1 * G2 * G3) to represent the operation:
-                        // B22 * G1 * G2 * G3
-                        let Vd = List.fold (fun (V: Matrix) (v: Matrix) -> V * v) (Matrix.I Bd.N) (Vs |> List.rev)
-
-                        // Translate to full dimension.
-                        let Vb = Matrix.I V.M
-                        Vb.[p..q, p..q] <- Vd
-
-                        inner B Ut (V * Vb)
+                        // TODO: accumulate U, V...
+                        inner B Utb Vb
                     else
-                        let GBd, Us = zeroRow Bd i
-                        B.[p..q, p..q] <- GBd
+                        // Diagonal element in the middle is zero
+                        // Decouple into two separate problems.
+                        let B1, Ut1, V1 = SvdSteps B.[..k, ..k]
+                        let B2, Ut2, V2 = SvdSteps B.[k+1.., k+1..]
 
-                        // Accumulate givens matrices (G1 * G2 * G3) and transpose to represent the operation:
-                        // G3' * G2' * G1' * B22
-                        let Utd = (List.fold (fun (U: Matrix) (u: Matrix) -> u * U) (Matrix.I Bd.M) Us).T
+                        // Overwrite B with solutions to subproblems.
+                        B.[..k, ..k] <- B1
+                        B.[k+1.., k+1..] <- B2
 
-                        // Translate to full dimension.
-                        let Utb = Matrix.I Ut.M
-                        Utb.[p..q, p..q] <- Utd
-
-                        inner B (Utb * Ut) V
+                        // TODO: Also merge in Ut and V and accumulate to Utb and Vb...
+                        B, Utb, Vb
                 | None ->
                     let UtBV, Utd, Vd = SvdStep Bd
                     B.[p..q, p..q] <- UtBV
 
-                    // TODO: accumulate U, V
+                    // TODO: accumulate U, V...
                     inner B Ut V
 
         inner B Ut V
 
     /// Svd algorithm following Golub-Kahan.
+    /// Diagonalizes A = U' * D * V. This is the Singular Value Decomposition.
+    /// <param name="A">An m by n matrix with m >= n.</param>
+    /// <returns>A triple of matrices D (m by n), U (m by n) and V (n by n) such that A = U' * D * V</returns> 
     let Svd (A: Matrix) =
         let B = A.Clone()
         let m = B.M
@@ -157,12 +156,12 @@ module Eigenvalue =
 
         if m < n then raise <| invDimMsg $"M must be >= N but was: {m} < {n}"
 
-        // Bidiagonalize.
+        // Bidiagonalize, A = U' * [B; 0] * V
         let Ba, Ua, Va = Bidiagonalize B
         let Ub = Ua.Accumulate
         let Vb = Va.Accumulate
 
-        // Skip superflous zeros.
+        // Skip superflous zero rows, these do not contribute to singular values.
         let Bb = Ba.[..n-1, ..n-1]
         
         // Find singular values from bidiagonal matrix.
@@ -172,6 +171,7 @@ module Eigenvalue =
         let Ut = Ud * Ub
         let V = Vb * Vd
 
+        // TODO: Add extra rows back to D
         D, Ut, V
 
     /// QR Algorithm with shifts for revealing eigenvalues in

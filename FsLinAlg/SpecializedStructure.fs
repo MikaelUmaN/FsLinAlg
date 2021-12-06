@@ -56,3 +56,40 @@ module SpecializedStructure =
     let givensMatrix n i k a b =
         let (c, s) = givensNumbers a b
         givens n i k c s
+
+    /// Zeros the entire row, because zeroing one element affects the nearby element
+    /// on the same row.
+    /// <returns>
+    /// Tuple of matrix B* (with row i zeroed) and matrix U representing the
+    /// operation of givens matrices pre-multiplying B to give B*.
+    /// </returns>
+    let zeroRow (B: Matrix) (i: int) =
+        let GB, Us =
+            List.fold (fun (GB: Matrix, Us: List<Matrix>) k -> 
+                let U = givensMatrix B.N i k GB.[k, k] GB.[i, k] 
+                (U.T * GB, U::Us)) (B, []) [i+1..B.N-1]
+
+        // Accumulate givens matrices (G1 * G2 * G3) and transpose to represent the operation:
+        // G3' * G2' * G1' * B22
+        let Utd = (List.fold (fun (U: Matrix) (u: Matrix) -> u * U) (Matrix.I B.M) Us).T
+
+        GB, Utd
+
+    /// Zeros the entire column, because zeroing one element offsets the nearby element
+    /// on the same column.
+    /// <returns>
+    /// Tuple of matrix B* (with column k zeroed) and matrix V representing the 
+    /// operation of givens matrices post-multiplying B to give B*.
+    /// </returns>
+    let zeroColumn (B: Matrix) (k: int) =
+        let BG, Vs =
+            List.fold (fun (BG: Matrix, Vs: List<Matrix>) i -> 
+                let V = givensMatrix B.N i k BG.[i, i] BG.[i, k] 
+                (BG * V.T, V.T::Vs)) (B, []) [k-1..-1..0]
+
+
+        // Accumulate givens matrices (G1 * G2 * G3) to represent the operation:
+        // B * G1 * G2 * G3
+        let Vd = List.fold (fun (V: Matrix) (v: Matrix) -> V * v) (Matrix.I B.N) (Vs |> List.rev)
+
+        BG, Vd

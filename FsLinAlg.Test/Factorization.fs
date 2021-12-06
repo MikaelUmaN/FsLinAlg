@@ -129,6 +129,23 @@ module Factorization =
 
             testList "Bidiagonalization" [
 
+                testProp "Bidiagonal matrix remains bidiagonal" <| fun (Br: BidiagonalMatrix) ->
+                        let (BidiagonalMatrix B) = Br
+                        let Bd, Ua, Va = B.Bidiagonalize
+
+                        let U = Ua.Accumulate
+                        let V = Va.Accumulate
+
+                        // The result is of course bidiagonal.
+                        Expect.isTrue (Bd.IsBidiagonal()) "Matrix is not bidiagonal"
+
+                        // The matrix is equal to the input matrix.
+                        Expect.equal Bd B "Bidiagonal input matrix has been changed"
+
+                        // Reconstitute B.
+                        let Bs = U.T * Bd * V
+                        Expect.equal Bs B "Bidiagonal matrix could not be created from Householder matrices"                        
+
                 test "Golub, Van Loan 3rd Ed. p. 252 reference test" {
                     let A = 
                         [

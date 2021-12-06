@@ -124,44 +124,50 @@ module Factorization =
     /// Reduction to bidiagonal form using Householder reflections for rectangular matrix A: m by n,
     /// where m >= n. Returns the matrix B along with U and V such that B = U' * A * V.
     /// U and V are represented as Householder accumulators that can be materialized as desired.
-    let Bidiagonalize (A: Matrix) =
+    let Bidiagonalize (A: Matrix): (Matrix * MatrixAccumulator * MatrixAccumulator) =
         if A.M < A.N then raise <| invDimMsg $"Expected M >= N, but {A.M} <= {A.N}"
 
         let B = A.Clone()
+        let m = B.M
         let n = B.N
 
-        let rec bidiagonalize k uks vks =
-            // Introduce zeros in column k.
-            let x = B.[k.., k]
-            let sn = float(sign x.[0])
-            let ut = sn * x.Norm * Vector.e 0 x.Length + x
-            let uk = if sn < 0. then -1. * ut else ut
-            let ukn = uk / uk.Norm
+        // If already a bidiagonal matrix, we just return.
+        if B.IsBidiagonal() then 
+            B, StaticAccumulator(Matrix.Imn(n, m, n)), StaticAccumulator(Matrix.I(n))
+        else
 
-            // U' * A
-            B.[k.., k..] <- B.[k.., k..] - 2.*ukn*(ukn.T*B.[k.., k..])
+            let rec bidiagonalize k uks vks =
+                // Introduce zeros in column k.
+                let x = B.[k.., k]
+                let sn = float(sign x.[0])
+                let ut = sn * x.Norm * Vector.e 0 x.Length + x
+                let uk = if sn < 0. then -1. * ut else ut
+                let ukn = uk / uk.Norm
 
-            if k < n-2 then
-                // Introduce zeros in row k.
-                let y = B.[k, k+1..]
-                let sny = float(sign y.[0])
-                let vt = sny * y.Norm * Vector.e 0 y.Length + y
-                let vk = if sny < 0. then -1. * vt else vt
-                let vkn = vk / vk.Norm
+                // U' * A
+                B.[k.., k..] <- B.[k.., k..] - 2.*ukn*(ukn.T*B.[k.., k..])
 
-                // A * V
-                B.[k.., k+1..] <- B.[k.., k+1..] - (B.[k.., k+1..]*2.*vkn)*vkn.T
+                if k < n-2 then
+                    // Introduce zeros in row k.
+                    let y = B.[k, k+1..]
+                    let sny = float(sign y.[0])
+                    let vt = sny * y.Norm * Vector.e 0 y.Length + y
+                    let vk = if sny < 0. then -1. * vt else vt
+                    let vkn = vk / vk.Norm
 
-                bidiagonalize (k+1) (ukn::uks) (vkn::vks)
-            elif k < n-1 then
-                bidiagonalize (k+1) (ukn::uks) vks
-            else
-                (ukn::uks), vks
+                    // A * V
+                    B.[k.., k+1..] <- B.[k.., k+1..] - (B.[k.., k+1..]*2.*vkn)*vkn.T
 
-        let uks, vks = bidiagonalize 0 [] []
-        let U = HouseholderAccumulation uks
-        let V = HouseholderAccumulation(vks, n)
-        B, U, V
+                    bidiagonalize (k+1) (ukn::uks) (vkn::vks)
+                elif k < n-1 then
+                    bidiagonalize (k+1) (ukn::uks) vks
+                else
+                    (ukn::uks), vks
+
+            let uks, vks = bidiagonalize 0 [] []
+            let U = HouseholderAccumulator uks
+            let V = HouseholderAccumulator(vks, n)
+            B, U, V
 
     /// A = R.T R
     /// Elimination on a symmetric matrix.

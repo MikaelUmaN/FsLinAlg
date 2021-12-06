@@ -190,6 +190,13 @@ module DataStructure =
                 eye.[i, i] <- 1.
             eye |> Matrix
 
+        /// Creates an identity matrix with the possibility of extra (zero-padded) rows and columns.
+        static member Imn(dim, m, n) =
+            let eyeMn = Array2D.zeroCreate (dim+m) (dim+n)
+            let eyeDim = Matrix.I dim
+            eyeMn.[..dim-1, ..dim-1] <- eyeDim.Data
+            Matrix(eyeMn)
+            
         /// Returns the length of the maximum dimension.
         static member maxDim (A: Matrix) = max A.M A.N
 
@@ -448,18 +455,33 @@ module DataStructure =
 
     type Mat = Matrix
 
+    /// Interface for types that accumulate matrices.
+    /// Useful in case specialized structures enable faster computation,
+    /// and the materialization of the resulting matrix can therefore be sped up,
+    /// and only executed when desired.
+    type MatrixAccumulator =
+        abstract member Accumulate: Matrix
+
+    /// Supportive interface implementation when the matrix is trivial
+    /// and can be represented immediately.
+    type StaticAccumulator(M: Matrix) =
+        interface MatrixAccumulator with
+            member _.Accumulate = M
+
     /// Data structure for accumulation of Householder vectors.
     /// Accepts a list of vectors, each vector is used once in the accumulation.
     /// Optionally accepts the size of the Householder matrix, else it is inferred from the largest vector.
     /// The vectors are supplied in the order from smallest to largest.
-    type HouseholderAccumulation(vs: List<Vector>, ?N: int) =
+    type HouseholderAccumulator(vs: List<Vector>, ?N: int) =
         let r = vs.Length
         let n = if N.IsNone then vs.[^0].Length else N.Value
 
-        /// Accumulates the vectors into the full matrix representation.
-        member _.Accumulate =
-            let Q = Matrix.I n
-            for j in 0..r-1 do
-                let v = vs.[j]
-                Q.[^j+1.., ^j+1..]  <- (Matrix.I (j+2) - 2.*v*v.T) * Q.[^j+1.., ^j+1..]
-            Q
+        interface MatrixAccumulator with
+
+            /// Accumulates the vectors into the full matrix representation.
+            member _.Accumulate =
+                let Q = Matrix.I n
+                for j in 0..r-1 do
+                    let v = vs.[j]
+                    Q.[^j+1.., ^j+1..]  <- (Matrix.I (j+2) - 2.*v*v.T) * Q.[^j+1.., ^j+1..]
+                Q

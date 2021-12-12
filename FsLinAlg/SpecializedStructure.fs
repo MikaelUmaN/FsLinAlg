@@ -13,6 +13,9 @@ module SpecializedStructure =
     /// The product G(i, k, θ)x represents a counterclockwise rotation of the vector x in the (i, k) 
     /// plane of θ radians, hence the name Givens rotation.
     /// 
+    /// When a Givens rotation matrix, G(i, j, θ), multiplies another matrix, A, from the left, 
+    /// G*A, only rows i and j of A are affected.
+    /// 
     /// The main use of Givens rotations in numerical linear algebra is to introduce zeros in vectors or matrices. 
     /// This effect can, for example, be employed for computing the QR decomposition of a matrix. 
     /// One advantage over Householder transformations is that they can easily be parallelised, 
@@ -36,20 +39,20 @@ module SpecializedStructure =
     /// Note: Does not follow Golub Van Loan 3rd Ed. Eq. 5.1.7, instead follows Wikipedia.
     let givensNumbers a b =
         if b = 0. then
-            (sign a |> float, 0.)
+            signv a, 0.
         elif a = 0. then
-            (0., sign b |> float)
+            0., signv b
         elif abs a > abs b then
             let t = b / a
-            let u = (sign a |> float) * sqrt(1. + t**2.)
+            let u = signv a * sqrt(1. + t**2.)
             let c = 1./u
-            (c, c * t)
+            c, c*t
         else
             let t = a / b
-            let u = (sign b |> float) * sqrt(1. + t**2.)
+            let u = signv b * sqrt(1. + t**2.)
             let s = 1./u
-            (s*t, s)
-
+            s*t, s
+            
     /// Returns a given rotation matrix.
     /// Note: Does not follow Golub Van Loan 3rd Ed. Eq. 5.1.7, instead follows Wikipedia.
     /// They are equivalent up to a transpose operation.
@@ -74,6 +77,7 @@ module SpecializedStructure =
         let Utd = (List.fold (fun (U: Matrix) (u: Matrix) -> u * U) (Matrix.I B.M) Us).T
 
         GB, Utd
+
 
     /// Zeros the entire column, because zeroing one element offsets the nearby element
     /// on the same column.

@@ -40,7 +40,7 @@ module Factorization =
 
         let rec triangulate k uks =
             let x = R.[k.., k]
-            let sn = float(sign x.[0])
+            let sn = signv x.[0]
             let vk = sn * x.Norm * Vector.e 0 x.Length + x
 
             // Forming R
@@ -103,9 +103,9 @@ module Factorization =
         else
             let rec triangulate k uks =
                 let x = H.[k+1.., k]
-                let sn = float(sign x.[0])
+                let sn = signv x.[0]
                 let vt = x.Norm * Vector.e 0 x.Length + x
-                let vk = if sn < 0. then -1. * vt else vt
+                let vk = sn * vt
 
                 let uk = 
                     if not <| isZeroStrict vk.Norm then
@@ -139,9 +139,9 @@ module Factorization =
             let rec bidiagonalize k uks vks =
                 // Introduce zeros in column k.
                 let x = B.[k.., k]
-                let sn = float(sign x.[0])
+                let sn = signv x.[0]
                 let ut = sn * x.Norm * Vector.e 0 x.Length + x
-                let uk = if sn < 0. then -1. * ut else ut
+                let uk = sn * ut
                 let ukn = uk / uk.Norm
 
                 // U' * A
@@ -150,9 +150,9 @@ module Factorization =
                 if k < n-2 then
                     // Introduce zeros in row k.
                     let y = B.[k, k+1..]
-                    let sny = float(sign y.[0])
+                    let sny = signv y.[0]
                     let vt = sny * y.Norm * Vector.e 0 y.Length + y
-                    let vk = if sny < 0. then -1. * vt else vt
+                    let vk = sny * vt
                     let vkn = vk / vk.Norm
 
                     // A * V

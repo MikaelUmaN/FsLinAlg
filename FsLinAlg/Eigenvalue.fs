@@ -72,107 +72,157 @@ module Eigenvalue =
         UtBV, Ut, V
 
     let rec SvdSteps (A: Matrix) =
+        if A.M <> A.N then raise <| invDimMsg $"Square matrix expected but received: M = {A.M} <> N = {A.N}"
+    
         let B = A.Clone()
-        let m = B.M
         let n = B.N
-        let Ut = Matrix.I m
-        let V = Matrix.I n
-
-        let rec inner (B: Matrix) (Ut: Matrix) (V: Matrix) =
-
+    
+        let rec inner (B: Matrix) (Uts: Matrix list) (Vs: Matrix list) =
+    
+            // 1. Check for convergence.
             // Zero any superdiagonal element that is negligible compared to its closest diagonal elements.
             for i in 0..n-2 do
                 if insignificantComparedTo (abs(B.[i, i+1])) (abs(B.[i, i]) + abs(B.[i+1, i+1])) then
                     B.[i, i+1] <- 0.
-                
+    
             // Find the largest diagonal from the bottom-right. Base case is a complete diagonal matrix,
             // in which case we are done.
             let qOpt = ([n-2..-1..0] |> List.tryFind (fun i -> not (isZero B.[i, i+1])))
             let q = (if qOpt.IsSome then qOpt.Value + 1 else 0)
             if q = 0 then
-                B, Ut, V
+                B, Uts, Vs
             else
-
+    
                 // Find the smallest diagonal from the top-left. Base case is a size zero matrix.
                 let pOpt = [0..q] |> List.tryFind (fun i -> not (isZero B.[i, i+1]))
                 let p = if pOpt.IsSome then pOpt.Value else 0
-
+    
                 // B22 matrix. Must have non-zero superdiagonal.
+                // This is the matrix to perform work on.
                 let Bd = B.[p..q, p..q]
-
+    
+                // 2. Detect decoupling.
                 // Zero any superdiagonal element if the diagonal element is zero.
                 let zeroDiagOpt = [0..Bd.N-1] |> List.tryFind (fun i -> isZero Bd.[i, i])
                 match zeroDiagOpt with
                 | Some(i) ->
                     // This addresses into B rather than Bd.
                     let k = i + p
-
-                    let Utb, Vb =
+    
+                    let Utd, Vd =
                         if i = Bd.N-1 then
                             let BG, Vd = zeroColumn B k
                             B.[*, *] <- BG
-                            Ut, (V * Vd)
+                            None, Some(Vd)
                         else
                             let GB, Utd = zeroRow B k
                             B.[*, *] <- GB
-                            (Utd * Ut), V
-
+                            Some(Utd), None
+                    let Utsn = if Utd.IsSome then (Utd.Value::Uts) else Uts
+                    let Vsn = if Vd.IsSome then (Vd.Value::Vs) else Vs
+    
                     if k = B.N-1 || k = 0 then
                         // Upper left diagonal element is zero, or lower right diagonal element is zero, 
                         // no need to decouple into sub-problems.
-                        // The next iteration, this part will be in the (diagonal) B33 matrix.
-
-                        // TODO: accumulate U, V...
-                        inner B Utb Vb
+                        // The next iteration, this part will be in the (diagonal) B11 or B33 matrix.
+    
+                        inner B Utsn Vsn
                     else
                         // Diagonal element in the middle is zero
                         // Decouple into two separate problems.
-                        let B1, Ut1, V1 = SvdSteps B.[..k, ..k]
-                        let B2, Ut2, V2 = SvdSteps B.[k+1.., k+1..]
-
+                        let B1, Uts1, Vs1 = SvdSteps B.[..k, ..k]
+                        let B2, Uts2, Vs2 = SvdSteps B.[k+1.., k+1..]
+    
                         // Overwrite B with solutions to subproblems.
                         B.[..k, ..k] <- B1
                         B.[k+1.., k+1..] <- B2
-
-                        // TODO: Also merge in Ut and V and accumulate to Utb and Vb...
-                        B, Utb, Vb
+    
+                        // Reshape matrices U and V to full dimension.
+                        let Uts1n = 
+                            Uts1 
+                            |> List.map (fun ut ->
+                                let Ut = Matrix.I n
+                                Ut.[..k, ..k] <- ut
+                                Ut)
+                        let Vs1n = 
+                            Vs1 
+                            |> List.map (fun v ->
+                                let V = Matrix.I n
+                                V.[..k, ..k] <- v
+                                V)
+                        let Uts2n = 
+                            Uts2 
+                            |> List.map (fun ut ->
+                                let Ut = Matrix.I n
+                                Ut.[..k, ..k] <- ut
+                                Ut)
+                        let Vs2n = 
+                            Vs2 
+                            |> List.map (fun v ->
+                                let V = Matrix.I n
+                                V.[..k, ..k] <- v
+                                V)
+    
+                        // By convention, apply B1 first, then B2.
+                        let Utsnn = Uts2n @ Uts1n @ Utsn
+                        let Vsnn = Vs2n @ Vs1n @ Vsn
+    
+                        // And we are done.
+                        B, Utsnn, Vsnn
                 | None ->
                     let UtBV, Utd, Vd = SvdStep Bd
                     B.[p..q, p..q] <- UtBV
-
-                    // TODO: accumulate U, V...
-                    inner B Ut V
-
-        inner B Ut V
+    
+                    // Reshape matrices U and V to full dimension.
+                    let Ut = Matrix.I n
+                    Ut.[p..q, p..q] <- Utd
+                    let V = Matrix.I n
+                    V.[p..q, p..q] <- Vd
+    
+                    // Recurse until convergence.
+                    inner B (Ut::Uts) (V::Vs)
+    
+        inner B [] []
 
     /// Svd algorithm following Golub-Kahan.
     /// Diagonalizes A = U' * D * V. This is the Singular Value Decomposition.
     /// <param name="A">An m by n matrix with m >= n.</param>
     /// <returns>A triple of matrices D (m by n), U (m by n) and V (n by n) such that A = U' * D * V</returns> 
     let Svd (A: Matrix) =
+        if A.M < A.N then raise <| invDimMsg $"M must be >= N but was: {A.M} < {A.N}"
+
         let B = A.Clone()
         let m = B.M
         let n = B.N
 
-        if m < n then raise <| invDimMsg $"M must be >= N but was: {m} < {n}"
-
         // Bidiagonalize, A = U' * [B; 0] * V
         let Ba, Ua, Va = Bidiagonalize B
-        let Ub = Ua.Accumulate
+        let Ub = Ua.Accumulate // TODO: leave accumulation as optional.
         let Vb = Va.Accumulate
 
         // Skip superflous zero rows, these do not contribute to singular values.
         let Bb = Ba.[..n-1, ..n-1]
-        
-        // Find singular values from bidiagonal matrix.
-        let D, Ud, Vd = SvdSteps Bb
 
+        // Find singular values from bidiagonal matrix.
+        let Db, Uts, Vs = SvdSteps Bb
+
+        // Sign-adjust if necessary.
+        // Singular values are square root of eigenvalues of A'A, 
+        // by definition positive.
+        let eyes = 
+            (Db.D.Data |> Array.map signv) 
+            |> Array.toList 
+            |> Matrix.CreateDiagonal
+        let Vsn = eyes::Vs
+        let D = Db * eyes
+
+        // TODO: leave accumulation as optional
         // Form full left and right singular vectors.
-        let Ut = Ud * Ub
-        let V = Vb * Vd
+        //let Ut = Ud * Ub
+        //let V = Vb * Vd
 
         // TODO: Add extra rows back to D
-        D, Ut, V
+        D//, Ub, Vb, Uts, Vs
 
     /// QR Algorithm with shifts for revealing eigenvalues in
     /// the diagonal of the tridiagonal matrix S using

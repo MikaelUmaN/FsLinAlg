@@ -32,6 +32,10 @@ module Constants =
     let relEq x y = if isZero y then isZero x else (x-y) / y |> isZero
     let relEqStrict x y = if isZeroStrict y then isZeroStrict x else (x-y) / y |> isZeroStrict
 
+    /// Modified sign function that never returns zero.
+    /// By convention, sign of 0. is 1.
+    let signv x = if x >= 0. then 1. else -1.
+
 [<AutoOpen>]
 module Utils =
 

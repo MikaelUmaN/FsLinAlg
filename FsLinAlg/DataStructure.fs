@@ -174,6 +174,13 @@ module DataStructure =
                     let data = Array2D.init m n (fun i j -> rows.[i].[j]) 
                     Matrix(data)
 
+        static member CreateDiagonal (diagonal: list<float>) =
+            let n = diagonal.Length
+            let d = Array2D.zeroCreate<float> n n
+            for i in 0..n-1 do
+                d.[i, i] <- diagonal.[i]
+            Matrix(d)
+
         static member CreateTridiagonal (subdiagonal: list<float>) (diagonal: list<float>) (superdiagonal: list<float>) =
             let n = diagonal.Length
             let d = Array2D.zeroCreate<float> n n

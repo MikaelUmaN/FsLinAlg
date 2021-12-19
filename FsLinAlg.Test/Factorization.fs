@@ -127,7 +127,25 @@ module Factorization =
                     Expect.isTrue H.IsTridiagonal "Matrix is not tridiagonal"
             ]
 
-            testList "Bidiagonalization" [
+            testList "Bidiagonalization" [                   
+
+                testProp "Any tall matrix can be made bidiagonal" <| fun (As: TallThinMatrix) ->
+                    let (TallThinMatrix A) = As
+                    let B, Ua, Va = A.Bidiagonalize
+
+                    let U = Ua.Accumulate
+                    let V = Va.Accumulate
+
+                    // The result is bidiagonal.
+                    Expect.isTrue (B.IsBidiagonal()) "Matrix is not bidiagonal"
+
+                    // Reconstitute A.
+                    let A2 = U * B * V.T
+                    Expect.equal A2 A "Reconstituted matrix U * D * V' does not equal A"
+
+                    // Create B from B = U' * A * V
+                    let B2 = U.T * A * V
+                    Expect.equal B2 B "U' * A * V did not yield diagonal matrix D"
 
                 test "Golub, Van Loan 3rd Ed. p. 252 reference test" {
                     let A = 
@@ -139,15 +157,19 @@ module Factorization =
                         ]
                         |> Matrix.FromRowVectors
 
-                    let B, _, _ = A.Bidiagonalize
+                    let B, Ua, Va = A.Bidiagonalize
 
                     Expect.isTrue (B.IsBidiagonal()) "Matrix is not bidiagonal"
+
+                    let U = Ua.Accumulate
+                    let V = Va.Accumulate
+
+                    Expect.isTrue (U.IsOrthogonal) "Matrix U is not orthogonal"
+                    Expect.isTrue (V.IsOrthogonal) "Matrix V is not orthogonal"
+
+                    // Reconstitute B.
+                    let Bd = U.T * A * V
+                    Expect.equal Bd B "Bidiagonal matrix could not be created from Householder matrices"
                 }
-
-                testProp "Bidiagonal result" <| fun (Ar: TallThinMatrix) ->
-                        let (TallThinMatrix A) = Ar
-                        let B, _, _ = A.Bidiagonalize
-
-                        Expect.isTrue (B.IsBidiagonal()) "Matrix is not bidiagonal"
             ]
         ]

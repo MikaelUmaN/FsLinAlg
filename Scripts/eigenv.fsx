@@ -1,4 +1,4 @@
-#r "../FsLinAlg/bin/Debug/net5.0/FsLinAlg.dll"
+#r "/home/jovyan/work/FsLinAlg/FsLinAlg/bin/Debug/net5.0/FsLinAlg.dll"
 
 open System
 open FsLinAlg
@@ -12,7 +12,10 @@ let A = [
         ]
         |> Matrix.FromRowVectors
 
-let B = A.Bidiagonalize
+let B, Ua, Va = A.Bidiagonalize
+let U = Ua.Accumulate
+let V = Va.Accumulate
+let UtAV = U.T * A * V
 
 // Example Golub Van Loan 3rd Ed. p. 457
 let D = [
@@ -63,6 +66,21 @@ let ggB = G3.T * gB
 
 let G4 = givensMatrix B.N 1 4 ggB.[4, 4] ggB.[1, 4]
 let gggB = G4.T * ggB
+
+// Zero out the second last column?
+// such slow convergence otherwise...
+let C = [[|0.9545652593; 2.255838019; 0.0; 0.0|] |> Vector
+         [|0.0; 5.499750474e-06; -1.0; 0.0|] |> Vector
+         [|0.0; 0.0; 0.0; 0.0|] |> Vector
+         [|0.0; 0.0; 0.0; 4.123105626|] |> Vector]
+         |> Matrix.FromRowVectors
+
+ let V = givensMatrix C.N (C.N-3) (C.N-2) C.[C.N-3, C.N-3] C.[C.N-3, C.N-2]
+ let Cv = C * V.T
+ 
+ let V2 = givensMatrix C.N (C.N-4) (C.N-2) Cv.[C.N-4, C.N-4] Cv.[C.N-4, C.N-2]
+ let Cvv = Cv * V2.T
+ 
 
 // Zero out the last column...
 // works.

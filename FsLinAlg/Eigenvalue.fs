@@ -10,7 +10,7 @@ module Eigenvalue =
         let d = (T.[0, 0] - T.[1, 1]) / 2.
         // If zero, arbitrarily set to one
         let ds = if d < 0. then -1. else 1.
-        T.[1, 1] - ds*T.[0, 1]**2. / (abs ds + sqrt(d**2. + T.[0, 1]**2.))
+        T.[1, 1] - ds*T.[1, 0]**2. / (abs d + sqrt(d**2. + T.[1, 0]**2.))
         
     /// Finds eigenvalue of symmetric 2 by 2 matrix that is closer to T.[1, 1].
     /// Uses characteristic polynomial
@@ -22,6 +22,10 @@ module Eigenvalue =
         else
             r2
 
+    /// Takes one step in the Svd algorithm whereby A is being diagonlized.
+    /// We are implicitly operating on the tridiagonal matrix A'A.
+    /// <param name="A">Bidiagonal Matrix m by n with m >= n.</param>
+    /// <returns>Triple of matrices U' * A * V, U', V</returns>
     let SvdStep (A: Matrix) =
         let B = A.Clone()
         let m = B.M
@@ -50,12 +54,12 @@ module Eigenvalue =
             if m = 2 && n = 2 then
                 B.T * B
             else
-                let t11 = B.[n-2, n-2]**2. + B.[n-3, n-2]
-                let t = B.[n-2, n-2]*B.[n-2, n-1]
-                let t22 = B.[n-1, n-1]**2. + B.[n-2, n-1] 
+                let t11 = B.[n-2, n-2]**2. + B.[n-3, n-2]**2.
+                let t = B.[n-2, n-2] * B.[n-2, n-1]
+                let t22 = B.[n-1, n-1]**2. + B.[n-2, n-1]**2.
                 array2D [[ t11; t ]; [t; t22]]
                 |> Matrix
-        let mu = wilkinsonShift T
+        let mu = wilkinsonShift T // Wilkinson shift is defined as the eigenvalue closer to t22.
         let y = T.[0, 0] - mu
         let z = T.[0, 1]
 
@@ -67,61 +71,164 @@ module Eigenvalue =
 
         UtBV, Ut, V
 
-    let SvdSteps (A: Matrix) =
+    let rec SvdSteps (A: Matrix) =
+        if A.M <> A.N then raise <| invDimMsg $"Square matrix expected but received: M = {A.M} <> N = {A.N}"
+    
+        let B = A.Clone()
+        let n = B.N
+    
+        let rec inner (B: Matrix) (Uts: Matrix list) (Vs: Matrix list) =
+    
+            // 1. Check for convergence.
+            // Zero any superdiagonal element that is negligible compared to its closest diagonal elements.
+            for i in 0..n-2 do
+                if insignificantComparedTo (abs(B.[i, i+1])) (abs(B.[i, i]) + abs(B.[i+1, i+1])) then
+                    B.[i, i+1] <- 0.
+    
+            // Find the largest diagonal from the bottom-right. Base case is a complete diagonal matrix,
+            // in which case we are done.
+            let qOpt = ([n-2..-1..0] |> List.tryFind (fun i -> not (isZero B.[i, i+1])))
+            let q = (if qOpt.IsSome then qOpt.Value + 1 else 0)
+            if q = 0 then
+                B, Uts, Vs
+            else
+    
+                // Find the smallest diagonal from the top-left. Base case is a size zero matrix.
+                let pOpt = [0..q] |> List.tryFind (fun i -> not (isZero B.[i, i+1]))
+                let p = if pOpt.IsSome then pOpt.Value else 0
+    
+                // B22 matrix. Must have non-zero superdiagonal.
+                // This is the matrix to perform work on.
+                let Bd = B.[p..q, p..q]
+    
+                // 2. Detect decoupling.
+                // Zero any superdiagonal element if the diagonal element is zero.
+                let zeroDiagOpt = [0..Bd.N-1] |> List.tryFind (fun i -> isZero Bd.[i, i])
+                match zeroDiagOpt with
+                | Some(i) ->
+                    // This addresses into B rather than Bd.
+                    let k = i + p
+    
+                    let Utd, Vd =
+                        if i = Bd.N-1 then
+                            let BG, Vd = zeroColumn B k
+                            B.[*, *] <- BG
+                            None, Some(Vd)
+                        else
+                            let GB, Utd = zeroRow B k
+                            B.[*, *] <- GB
+                            Some(Utd), None
+                    let Utsn = if Utd.IsSome then (Utd.Value::Uts) else Uts
+                    let Vsn = if Vd.IsSome then (Vd.Value::Vs) else Vs
+    
+                    if k = B.N-1 || k = 0 then
+                        // Upper left diagonal element is zero, or lower right diagonal element is zero, 
+                        // no need to decouple into sub-problems.
+                        // The next iteration, this part will be in the (diagonal) B11 or B33 matrix.
+    
+                        inner B Utsn Vsn
+                    else
+                        // Diagonal element in the middle is zero
+                        // Decouple into two separate problems.
+                        let B1, Uts1, Vs1 = SvdSteps B.[..k, ..k]
+                        let B2, Uts2, Vs2 = SvdSteps B.[k+1.., k+1..]
+    
+                        // Overwrite B with solutions to subproblems.
+                        B.[..k, ..k] <- B1
+                        B.[k+1.., k+1..] <- B2
+    
+                        // Reshape matrices U and V to full dimension.
+                        let Uts1n = 
+                            Uts1 
+                            |> List.map (fun ut ->
+                                let Ut = Matrix.I n
+                                Ut.[..k, ..k] <- ut
+                                Ut)
+                        let Vs1n = 
+                            Vs1 
+                            |> List.map (fun v ->
+                                let V = Matrix.I n
+                                V.[..k, ..k] <- v
+                                V)
+                        let Uts2n = 
+                            Uts2 
+                            |> List.map (fun ut ->
+                                let Ut = Matrix.I n
+                                Ut.[..k, ..k] <- ut
+                                Ut)
+                        let Vs2n = 
+                            Vs2 
+                            |> List.map (fun v ->
+                                let V = Matrix.I n
+                                V.[..k, ..k] <- v
+                                V)
+    
+                        // By convention, apply B1 first, then B2.
+                        let Utsnn = Uts2n @ Uts1n @ Utsn
+                        let Vsnn = Vs2n @ Vs1n @ Vsn
+    
+                        // And we are done.
+                        B, Utsnn, Vsnn
+                | None ->
+                    let UtBV, Utd, Vd = SvdStep Bd
+                    B.[p..q, p..q] <- UtBV
+    
+                    // Reshape matrices U and V to full dimension.
+                    let Ut = Matrix.I n
+                    Ut.[p..q, p..q] <- Utd
+                    let V = Matrix.I n
+                    V.[p..q, p..q] <- Vd
+    
+                    // Recurse until convergence.
+                    inner B (Ut::Uts) (V::Vs)
+    
+        inner B [] []
+
+    /// Svd (reduced) algorithm following Golub-Kahan.
+    /// Diagonalizes A to D = U' * A * V. This is the Singular Value Decomposition.
+    /// <param name="A">An m by n matrix with m >= n.</param>
+    /// <returns>A triple of matrices D (n by n), U (m by n) and V (n by n) such that A = U * D * V'</returns> 
+    let Svd (A: Matrix) =
+        if A.M < A.N then raise <| invDimMsg $"M must be >= N but was: {A.M} < {A.N}"
+
         let B = A.Clone()
         let m = B.M
         let n = B.N
 
-        let rec inner (B: Matrix) =
+        // Bidiagonalize, A = U * [B; 0] * V'
+        let Ba, Ua, Va = Bidiagonalize B
+        let Ub = Ua.Accumulate
+        let Vb = Va.Accumulate
 
-            // Zero any superdiagonal element that is negligible compared to its closest diagonal elements.
-            for i in 0..n-2 do
-                if lessThan (abs(B.[i, i+1])) (abs(B.[i, i]) + abs(B.[i+1, i+1])) then
-                    B.[i, i+1] <- 0.
-                
-            // Find the largest diagonal from the bottom-right. Base case is a complete diagonal matrix,
-            // in which case we are done.
-            let qOpt = ([n-2..-1..0] |> List.tryFindIndex (fun i -> not (isZero B.[i, i+1])))
-            let q = (if qOpt.IsSome then qOpt.Value else n-1)
-            if q = n-1 then
-                B
-            else
+        // Skip superflous zero rows, these do not contribute to singular values.
+        let Bb = Ba.[..n-1, ..n-1]
 
-                // Find the smallest diagonal from the top-left. Base case is a size zero matrix.
-                let pOpt = [0..n-1-q] |> List.tryFindIndex (fun i -> not (isZero B.[i, i+1]))
-                let p = if pOpt.IsSome then pOpt.Value else 0
+        // Find singular values from bidiagonal matrix.
+        let Db, Uts, Vs = SvdSteps Bb
 
-                // B22 matrix. Must have non-zero superdiagonal.
-                let bs = p
-                let be = n-1-q
-                let Bd = B.[bs..be, bs..be]
+        // Sign-adjust if necessary.
+        // Singular values are square root of eigenvalues of A'A, 
+        // by definition positive.
+        let eyes = 
+            (Db.D.Data |> Array.map signv) 
+            |> Array.toList 
+            |> Matrix.CreateDiagonal
+        let Vss = eyes::Vs
+        let D = Db * eyes
 
-                // Zero any superdiagonal element if the diagonal element is zero.
-                // TODO: need to collect matrices here...
-                let zeroRow (B22: Matrix) (i: int) =
-                    List.fold (fun (GB: Matrix) k -> (givensMatrix B22.N i k GB.[k, k] GB.[i, k]).T * GB) B22 [i+1..B22.N]
-                let zeroLastColumn (B22: Matrix) =
-                    List.fold (fun (BG: Matrix) k -> BG * (givensMatrix B22.N (B22.N-k) (B.N-1) BG.[B22.N-k, B22.N-k] BG.[B22.N-k, B22.N-1]).T) B22 [2..B22.N]   
+        // Accumulate U' and V.
+        let I = Matrix.I n
+        let Utsn = List.fold (fun (U: Matrix) (ut: Matrix) -> U * ut) I Uts
+        let Vsn = List.fold (fun (V: Matrix) (v: Matrix) -> V * v) I (List.rev Vss)
 
-                let zeroDiagOpt = [0..Bd.N-1] |> List.tryFindIndex (fun i -> isZero Bd.[i, i])
-                match zeroDiagOpt with
-                | Some(i) ->
-                    let GBd = if i = Bd.N-1 then Bd else zeroRow Bd i
-                    B.[bs..be, bs..be] <- GBd
-                    inner B
-                | None ->
-                    let UtBV, Ut, V = SvdStep Bd
-                    B.[bs..be, bs..be] <- UtBV
-                    inner B
-                    //let UIT = Matrix.I B.N
-                    //for i in bs..be do
-                    //    UIT.[i, i] <- Ut.[i-bs, i-bs]
-                    //let VI = Matrix.I B.N
-                    //for i in bs..be do
-                    //    VI.[i, i] <- V.[i-bs, i-bs]
-                    //let Bb = UIT * B * VI
+        // Form full left and right singular vectors.
+        let Utsnn = Matrix.I m
+        Utsnn.[..n-1, ..n-1] <- Utsn
+        let Ut = Utsnn * Ub.T
+        let U = Ut.T.[*, ..n-1]
+        let V = Vb * Vsn
 
-        inner B
+        D, U, V
 
     /// QR Algorithm with shifts for revealing eigenvalues in
     /// the diagonal of the tridiagonal matrix S using

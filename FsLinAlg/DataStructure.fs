@@ -2,6 +2,10 @@
 open System
 open MathNet.Numerics.Distributions
 
+// Suppress: Consider implementing a matching override for 'Object.GetHashCode()'
+// Because it will be too slow for vector and matrix implementations.
+#nowarn "0346"
+
 /// Contains the fundamental datastructures.
 [<AutoOpen>]
 module DataStructure =
@@ -47,6 +51,9 @@ module DataStructure =
             and set(row) x =
                 data.[row] <- x
 
+        member _.GetReverseIndex(dim: int, offset: int) = 
+            data.GetReverseIndex(dim, offset)
+
         /// Column vector slices.
         member this.GetSlice(sr, er) =
             let sr, er =
@@ -59,17 +66,6 @@ module DataStructure =
                 defaultArg sr 0,
                 defaultArg er (this.Length-1)
             data.[sr..er] <- x.Data
-
-        override this.Equals other =
-            match other with
-            | :? Vector as v ->
-                if v.Length <> this.Length then
-                    false
-                else
-                    let xy = List.zip (this |> Vector.toList) (v |> Vector.toList)
-                    xy
-                    |> List.forall (fun (x, y) -> if isZero y then isZero (x-y) else relEq x y)
-            | _ -> false
 
         /// Unary ops
         static member (~-) (v: Vector) = v.Data |> Array.map (~-) |> Vector
@@ -107,6 +103,7 @@ module DataStructure =
             d.[i] <- 1.
             Vector(d)
 
+        static member concat (vs: seq<Vector>) = vs |> Seq.map (fun v -> v.Data) |> Array.concat |> Vector
         static member exists pred (v: Vector) = v.Data |> Array.exists pred
         static member toList (v: Vector) = v.Data |> Array.toList
         static member toArray (v: Vector) = v.Data
@@ -121,12 +118,24 @@ module DataStructure =
         static member findMinIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.min))
         static member randn m = randnf.Samples() |> Seq.take m |> Seq.toArray |> Vector
 
+        override this.Equals other =
+            match other with
+            | :? Vector as v ->
+                if v.Length <> this.Length then
+                    false
+                else
+                    let dX = this - v
+                    let dXn = dX.Norm
+                    let n = this.Norm
+
+                    if isZero n then isZero dXn else isZero (dXn / n)
+            | _ -> false
+
         interface ICloneable with
             member this.Clone() =
                 this.Data |> Array.copy |> Vector :> obj
 
         member this.Clone() = (this :> ICloneable).Clone() :?> Vector
-
 
     /// Row-major matrix of size m (rows) by n (columns).
     and Matrix(data: float[,]) =
@@ -166,6 +175,20 @@ module DataStructure =
                     let n = rows.[0].Length
                     let data = Array2D.init m n (fun i j -> rows.[i].[j]) 
                     Matrix(data)
+        
+        static member Zerosmn m n =
+            let d = Array2D.zeroCreate<float> m n
+            Matrix(d)
+
+        static member Zeros dim =
+            Matrix.Zerosmn dim dim
+
+        static member CreateDiagonal (diagonal: list<float>) =
+            let n = diagonal.Length
+            let d = Array2D.zeroCreate<float> n n
+            for i in 0..n-1 do
+                d.[i, i] <- diagonal.[i]
+            Matrix(d)
 
         static member CreateTridiagonal (subdiagonal: list<float>) (diagonal: list<float>) (superdiagonal: list<float>) =
             let n = diagonal.Length
@@ -177,12 +200,23 @@ module DataStructure =
             d.[n-1, n-1] <- diagonal.[n-1]
             Matrix(d)
 
+        /// Creates an identity matrix with ones on the diagonal.
         static member I(dim) =
             let eye = Array2D.zeroCreate dim dim
             for i in 0..dim-1 do
                 eye.[i, i] <- 1.
             eye |> Matrix
 
+        /// Creates an identity matrix with the possibility of extra (zero-padded) rows and columns.
+        /// m >= dim, n >= dim
+        static member Imn(dim, m, n) =
+            if m < dim || n < dim then
+                raise <| invDimMsg $"Inconsistent dimensions, expected m and n greater than or equal to dim but (dim, m, n) = ({dim}, {m}, {n})"
+            let eyeMn = Array2D.zeroCreate m n
+            let eyeDim = Matrix.I dim
+            eyeMn.[..dim-1, ..dim-1] <- eyeDim.Data
+            Matrix(eyeMn)
+            
         /// Returns the length of the maximum dimension.
         static member maxDim (A: Matrix) = max A.M A.N
 
@@ -193,6 +227,9 @@ module DataStructure =
                 data.[row, column]
             and set(row, column) x =
                 data.[row, column] <- x
+
+        member _.GetReverseIndex(dim: int, offset: int) = 
+            data.GetReverseIndex(dim, offset)
 
         /// Sub-matrices.
         member _.GetSlice(sr, er, sc, ec) =
@@ -265,6 +302,14 @@ module DataStructure =
             let d = min m n |> int
             [| for i in 0..d-1 -> data.[i, i] |]
             |> Vector
+
+        /// The diagonal of the matrix, as a matrix.
+        member _.Diagonal =
+            let d = min m n |> int
+            let dd = Array2D.zeroCreate d d
+            for i in 0..d-1 do
+                dd.[i, i] <- data.[i, i]
+            Matrix dd
 
         /// Returns a clone matrix that is upper triangular (diagonal included).
         member this.UpperTriangular =
@@ -349,29 +394,6 @@ module DataStructure =
             let minDim = min n m
             this.IsBidiagonal() && [for i in 0..minDim-2 -> isZero data.[i, i+1]] |> List.forall id
 
-        member this.IsOrthogonal =
-            if m <> n then
-                false
-            else
-                seq { 
-                    for i in 0..m-2 do
-                        for j in i+1..n-1 do
-                            yield (this.[i, *] *+ this.[j, *])
-                }
-                |> Seq.toList
-                |> List.forall isZero
-
-        override this.Equals other =
-            match other with
-            | :? Matrix as A ->
-                if A.Dimensions <> this.Dimensions then
-                    false
-                else
-                    let xy = List.zip (this.Data |> Seq.cast<float> |> Seq.toList) (A.Data |> Seq.cast<float> |> Seq.toList)
-                    xy
-                    |> List.forall (fun (x, y) -> if isZero y then isZero (x-y) else relEq x y)
-            | _ -> false
-
         override _.ToString() = sprintf "%A" data
 
         /// Unary ops
@@ -389,7 +411,7 @@ module DataStructure =
         /// Matrix-matrix ops
         static member (*) (A: Matrix, B: Matrix) =
             if A.N <> B.M then
-                failwithf "Inconsistent dimensions for matrix multiplication: %d and %d" A.N B.M
+                raise <| invDimMsg $"Inconsistent dimensions for matrix multiplication: {A.N} and {B.M}"
             else
                 Array2D.init A.M B.N (fun i j -> A.[i, *] *+ B.[*, j])
                 |> Matrix
@@ -406,11 +428,34 @@ module DataStructure =
 
         static member (*) (M: Matrix, v: Vector) = M * v.AsMatrix
 
+        static member iter f (M: Matrix) = M.Data |> Array2D.iter f
         static member map f (M: Matrix) = M.Data |> Array2D.map f |> Matrix
+        static member forall f (M: Matrix) =
+            M.Data |> Seq.cast<float>
+            |> Seq.forall f
         static member toVector (M: Matrix) = M.AsVector
         static member toScalar (M: Matrix) = M.AsScalar
         static member lpq p q (M: Matrix) = M.Lpq p q
         static member frobeniusNorm (M: Matrix) = M.FrobeniusNorm
+        static member abs (M: Matrix) = M |> Matrix.map abs
+
+        member this.IsOrthogonal =
+            let eye = this.T * this
+            let dim = eye.M
+            eye.Equals (Matrix.I dim)
+
+        override this.Equals other =
+            match other with
+            | :? Matrix as A ->
+                if A.Dimensions <> this.Dimensions then
+                    false
+                else
+                    let dA = this - A
+                    let dAfn = dA.FrobeniusNorm
+                    let fn = this.FrobeniusNorm
+
+                    if isZero fn then isZero dAfn else isZero (dAfn / fn)
+            | _ -> false
 
         interface ICloneable with
             member this.Clone() =
@@ -425,3 +470,34 @@ module DataStructure =
 
     type Mat = Matrix
 
+    /// Interface for types that accumulate matrices.
+    /// Useful in case specialized structures enable faster computation,
+    /// and the materialization of the resulting matrix can therefore be sped up,
+    /// and only executed when desired.
+    type MatrixAccumulator =
+        abstract member Accumulate: Matrix
+
+    /// Supportive interface implementation when the matrix is trivial
+    /// and can be represented immediately.
+    type StaticAccumulator(M: Matrix) =
+        interface MatrixAccumulator with
+            member _.Accumulate = M
+
+    /// Data structure for accumulation of Householder vectors.
+    /// Accepts a list of vectors, each vector is used once in the accumulation.
+    /// Optionally accepts the size of the Householder matrix, else it is inferred from the largest vector.
+    /// The vectors are supplied in the order from smallest to largest.
+    type HouseholderAccumulator(vs: List<Vector>, ?N: int) =
+        let r = vs.Length
+        let n = if N.IsNone then vs.[^0].Length else N.Value
+
+        interface MatrixAccumulator with
+
+            /// Accumulates the vectors into the full matrix representation.
+            member _.Accumulate =
+                let Q = Matrix.I n
+                for j in 0..r-1 do
+                    let v = vs.[j]
+                    let d = v.Length
+                    Q.[^d-1.., ^d-1..]  <- (Matrix.I d - 2.*v*v.T) * Q.[^d-1.., ^d-1..]
+                Q

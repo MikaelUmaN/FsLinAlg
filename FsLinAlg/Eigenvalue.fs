@@ -184,10 +184,10 @@ module Eigenvalue =
     
         inner B [] []
 
-    /// Svd algorithm following Golub-Kahan.
-    /// Diagonalizes A = U' * D * V. This is the Singular Value Decomposition.
+    /// Svd (reduced) algorithm following Golub-Kahan.
+    /// Diagonalizes A to D = U' * A * V. This is the Singular Value Decomposition.
     /// <param name="A">An m by n matrix with m >= n.</param>
-    /// <returns>A triple of matrices D (m by n), U (m by n) and V (n by n) such that A = U' * D * V</returns> 
+    /// <returns>A triple of matrices D (n by n), U (m by n) and V (n by n) such that A = U * D * V'</returns> 
     let Svd (A: Matrix) =
         if A.M < A.N then raise <| invDimMsg $"M must be >= N but was: {A.M} < {A.N}"
 
@@ -195,9 +195,9 @@ module Eigenvalue =
         let m = B.M
         let n = B.N
 
-        // Bidiagonalize, A = U' * [B; 0] * V
+        // Bidiagonalize, A = U * [B; 0] * V'
         let Ba, Ua, Va = Bidiagonalize B
-        let Ub = Ua.Accumulate // TODO: leave accumulation as optional.
+        let Ub = Ua.Accumulate
         let Vb = Va.Accumulate
 
         // Skip superflous zero rows, these do not contribute to singular values.
@@ -213,16 +213,22 @@ module Eigenvalue =
             (Db.D.Data |> Array.map signv) 
             |> Array.toList 
             |> Matrix.CreateDiagonal
-        let Vsn = eyes::Vs
+        let Vss = eyes::Vs
         let D = Db * eyes
 
-        // TODO: leave accumulation as optional
-        // Form full left and right singular vectors.
-        //let Ut = Ud * Ub
-        //let V = Vb * Vd
+        // Accumulate U' and V.
+        let I = Matrix.I n
+        let Utsn = List.fold (fun (U: Matrix) (ut: Matrix) -> U * ut) I Uts
+        let Vsn = List.fold (fun (V: Matrix) (v: Matrix) -> V * v) I (List.rev Vss)
 
-        // TODO: Add extra rows back to D
-        D//, Ub, Vb, Uts, Vs
+        // Form full left and right singular vectors.
+        let Utsnn = Matrix.I m
+        Utsnn.[..n-1, ..n-1] <- Utsn
+        let Ut = Utsnn * Ub.T
+        let U = Ut.T.[*, ..n-1]
+        let V = Vb * Vsn
+
+        D, U, V
 
     /// QR Algorithm with shifts for revealing eigenvalues in
     /// the diagonal of the tridiagonal matrix S using

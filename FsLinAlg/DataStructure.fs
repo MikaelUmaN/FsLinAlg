@@ -173,6 +173,13 @@ module DataStructure =
                     let n = rows.[0].Length
                     let data = Array2D.init m n (fun i j -> rows.[i].[j]) 
                     Matrix(data)
+        
+        static member Zerosmn m n =
+            let d = Array2D.zeroCreate<float> m n
+            Matrix(d)
+
+        static member Zeros dim =
+            Matrix.Zerosmn dim dim
 
         static member CreateDiagonal (diagonal: list<float>) =
             let n = diagonal.Length
@@ -191,6 +198,7 @@ module DataStructure =
             d.[n-1, n-1] <- diagonal.[n-1]
             Matrix(d)
 
+        /// Creates an identity matrix with ones on the diagonal.
         static member I(dim) =
             let eye = Array2D.zeroCreate dim dim
             for i in 0..dim-1 do
@@ -198,8 +206,11 @@ module DataStructure =
             eye |> Matrix
 
         /// Creates an identity matrix with the possibility of extra (zero-padded) rows and columns.
+        /// m >= dim, n >= dim
         static member Imn(dim, m, n) =
-            let eyeMn = Array2D.zeroCreate (dim+m) (dim+n)
+            if m < dim || n < dim then
+                raise <| invDimMsg $"Inconsistent dimensions, expected m and n greater than or equal to dim but (dim, m, n) = ({dim}, {m}, {n})"
+            let eyeMn = Array2D.zeroCreate m n
             let eyeDim = Matrix.I dim
             eyeMn.[..dim-1, ..dim-1] <- eyeDim.Data
             Matrix(eyeMn)
@@ -381,18 +392,6 @@ module DataStructure =
             let minDim = min n m
             this.IsBidiagonal() && [for i in 0..minDim-2 -> isZero data.[i, i+1]] |> List.forall id
 
-        member this.IsOrthogonal =
-            if m <> n then
-                false
-            else
-                seq { 
-                    for i in 0..m-2 do
-                        for j in i+1..n-1 do
-                            yield (this.[i, *] *+ this.[j, *])
-                }
-                |> Seq.toList
-                |> List.forall isZero
-
         override this.Equals other =
             match other with
             | :? Matrix as A ->
@@ -421,7 +420,7 @@ module DataStructure =
         /// Matrix-matrix ops
         static member (*) (A: Matrix, B: Matrix) =
             if A.N <> B.M then
-                failwithf "Inconsistent dimensions for matrix multiplication: %d and %d" A.N B.M
+                raise <| invDimMsg $"Inconsistent dimensions for matrix multiplication: {A.N} and {B.M}"
             else
                 Array2D.init A.M B.N (fun i j -> A.[i, *] *+ B.[*, j])
                 |> Matrix
@@ -448,6 +447,11 @@ module DataStructure =
         static member lpq p q (M: Matrix) = M.Lpq p q
         static member frobeniusNorm (M: Matrix) = M.FrobeniusNorm
         static member abs (M: Matrix) = M |> Matrix.map abs
+
+        member this.IsOrthogonal =
+            let eye = this.T * this
+            let dim = eye.M
+            eye.Equals (Matrix.I dim)
 
         interface ICloneable with
             member this.Clone() =
@@ -490,5 +494,6 @@ module DataStructure =
                 let Q = Matrix.I n
                 for j in 0..r-1 do
                     let v = vs.[j]
-                    Q.[^j+1.., ^j+1..]  <- (Matrix.I (j+2) - 2.*v*v.T) * Q.[^j+1.., ^j+1..]
+                    let d = v.Length
+                    Q.[^d-1.., ^d-1..]  <- (Matrix.I d - 2.*v*v.T) * Q.[^d-1.., ^d-1..]
                 Q

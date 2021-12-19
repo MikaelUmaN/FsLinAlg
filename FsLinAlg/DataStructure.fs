@@ -67,17 +67,6 @@ module DataStructure =
                 defaultArg er (this.Length-1)
             data.[sr..er] <- x.Data
 
-        override this.Equals other =
-            match other with
-            | :? Vector as v ->
-                if v.Length <> this.Length then
-                    false
-                else
-                    let xy = List.zip (this |> Vector.toList) (v |> Vector.toList)
-                    xy
-                    |> List.forall (fun (x, y) -> if isZero y then isZero (x-y) else relEq x y)
-            | _ -> false
-
         /// Unary ops
         static member (~-) (v: Vector) = v.Data |> Array.map (~-) |> Vector
 
@@ -128,6 +117,19 @@ module DataStructure =
         static member findMaxIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.max))
         static member findMinIndex (v: Vector) = v |> Vector.findIndex (fun x -> x = (v |> Vector.min))
         static member randn m = randnf.Samples() |> Seq.take m |> Seq.toArray |> Vector
+
+        override this.Equals other =
+            match other with
+            | :? Vector as v ->
+                if v.Length <> this.Length then
+                    false
+                else
+                    let dX = this - v
+                    let dXn = dX.Norm
+                    let n = this.Norm
+
+                    if isZero n then isZero dXn else isZero (dXn / n)
+            | _ -> false
 
         interface ICloneable with
             member this.Clone() =
@@ -392,17 +394,6 @@ module DataStructure =
             let minDim = min n m
             this.IsBidiagonal() && [for i in 0..minDim-2 -> isZero data.[i, i+1]] |> List.forall id
 
-        override this.Equals other =
-            match other with
-            | :? Matrix as A ->
-                if A.Dimensions <> this.Dimensions then
-                    false
-                else
-                    let xy = List.zip (this.Data |> Seq.cast<float> |> Seq.toList) (A.Data |> Seq.cast<float> |> Seq.toList)
-                    xy
-                    |> List.forall (fun (x, y) -> if isZero y then isZero (x-y) else relEq x y)
-            | _ -> false
-
         override _.ToString() = sprintf "%A" data
 
         /// Unary ops
@@ -452,6 +443,19 @@ module DataStructure =
             let eye = this.T * this
             let dim = eye.M
             eye.Equals (Matrix.I dim)
+
+        override this.Equals other =
+            match other with
+            | :? Matrix as A ->
+                if A.Dimensions <> this.Dimensions then
+                    false
+                else
+                    let dA = this - A
+                    let dAfn = dA.FrobeniusNorm
+                    let fn = this.FrobeniusNorm
+
+                    if isZero fn then isZero dAfn else isZero (dAfn / fn)
+            | _ -> false
 
         interface ICloneable with
             member this.Clone() =

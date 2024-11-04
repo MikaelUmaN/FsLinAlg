@@ -409,7 +409,7 @@ module DataStructure =
             M.Data |> Array2D.map (fun y -> x / y) |> Matrix
 
         /// Matrix-matrix ops
-        static member (*) (A: Matrix, B: Matrix) =
+        static member (*) (A: Matrix, B: Matrix): Matrix =
             if A.N <> B.M then
                 raise <| invDimMsg $"Inconsistent dimensions for matrix multiplication: {A.N} and {B.M}"
             else
@@ -499,5 +499,5 @@ module DataStructure =
                 for j in 0..r-1 do
                     let v = vs.[j]
                     let d = v.Length
-                    Q.[^d-1.., ^d-1..]  <- (Matrix.I d - 2.*v*v.T) * Q.[^d-1.., ^d-1..]
+                    Q[^(d-1).., ^(d-1)..]  <- (Matrix.I d - 2.*v*v.T) * Q.[^(d-1).., ^(d-1)..]
                 Q

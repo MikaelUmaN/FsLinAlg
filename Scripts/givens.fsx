@@ -1,4 +1,4 @@
-#r "../FsLinAlg/bin/Debug/net6.0/FsLinAlg.dll"
+#r "../FsLinAlg/bin/Debug/net8.0/FsLinAlg.dll"
 
 open System
 open FsLinAlg
@@ -42,40 +42,18 @@ G * x
 x.T*G.T
 
 // Example from wikipedia.
-let A = [
-            Vec [|6.;5.;0.|]
-            Vec [|5.;1.;4.|]
-            Vec [|0.;4.;3.|]
-        ]
-        |> Matrix.FromColumnVectors
+let A = array2D [
+                [|6.;5.;0.|]
+                [|5.;1.;4.|]
+                [|0.;4.;3.|]
+            ] |> Matrix
 
 // from left: 0, 1 <- zero 1
-let (c, s) = givensNumbers 6. 5.
+let (c, s) = givensNumbers A[0, 0] A[1, 0]
 let G1 = givens A.N 0 1 c s
 let A2 = G1 * A
 
 // from left: 1, 2
-let (c1, s1) = givensNumbers -2.4327 4.
+let (c1, s1) = givensNumbers A2[1, 1] A2[2, 1]
 let G2 = givens A.N 1 2 c1 s1
 let A3 = G2 * A2
-
-
-
-// try from right side..
-// Example from wikipedia.
-let A = [
-            Vec [|6.;5.;0.|]
-            Vec [|5.;1.;4.|]
-            Vec [|0.;4.;3.|]
-        ]
-        |> Matrix.FromColumnVectors
-
-// from right: 1, 2 <- zero 4
-let (c, s) = givensNumbers 1. 4.
-let G1 = givens A.N 1 2 c s
-let A2 = A * G1.T
-
-// from right: 2, 3 <- zero -3.152963125
-let (c1, s1) = givensNumbers 0. -3.152963125
-let G2 = givens A.N 0 2 c1 s1
-let A3 = A2 * G2.T

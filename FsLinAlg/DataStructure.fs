@@ -47,9 +47,9 @@ module DataStructure =
         /// Get/Set value by row.
         member _.Item
             with get(row) =
-                data.[row]
+                data[row]
             and set(row) x =
-                data.[row] <- x
+                data[row] <- x
 
         member _.GetReverseIndex(dim: int, offset: int) = 
             data.GetReverseIndex(dim, offset)
@@ -59,13 +59,13 @@ module DataStructure =
             let sr, er =
                 defaultArg sr 0,
                 defaultArg er (this.Length-1)
-            data.[sr..er] |> Vector
+            data[sr..er] |> Vector
             
         member this.SetSlice(sr, er, x: Vector) =
             let sr, er =
                 defaultArg sr 0,
                 defaultArg er (this.Length-1)
-            data.[sr..er] <- x.Data
+            data[sr..er] <- x.Data
 
         /// Unary ops
         static member (~-) (v: Vector) = v.Data |> Array.map (~-) |> Vector
@@ -100,7 +100,7 @@ module DataStructure =
         static member zero n = Vector(Array.zeroCreate n)
         static member e i n =
             let d = Array.zeroCreate n
-            d.[i] <- 1.
+            d[i] <- 1.
             Vector(d)
 
         static member concat (vs: seq<Vector>) = vs |> Seq.map (fun v -> v.Data) |> Array.concat |> Vector
@@ -159,10 +159,10 @@ module DataStructure =
                 failwith "Column vector list cannot be empty"
             else
                 let lens = columns |> List.map (Vector.length)
-                if List.zip lens.[..^1] lens.[1..] |> List.sumBy (fun (i, j) -> i - j) <> 0 then failwith "Column vectors have inconsistent length" else
+                if List.zip lens[..^1] lens[1..] |> List.sumBy (fun (i, j) -> i - j) <> 0 then failwith "Column vectors have inconsistent length" else
                     let n = columns.Length
-                    let m = columns.[0].Length
-                    let data = Array2D.init m n (fun i j -> columns.[j].[i]) 
+                    let m = columns[0].Length
+                    let data = Array2D.init m n (fun i j -> columns[j][i]) 
                     Matrix(data)
 
         static member FromRowVectors (rows: list<Vector>) =
@@ -170,10 +170,10 @@ module DataStructure =
                 failwith "Row vector list cannot be empty"
             else
                 let lens = rows |> List.map (Vector.length)
-                if List.zip lens.[..^1] lens.[1..] |> List.sumBy (fun (i, j) -> i - j) <> 0 then failwith "Row vectors have inconsistent length" else
+                if List.zip lens[..^1] lens[1..] |> List.sumBy (fun (i, j) -> i - j) <> 0 then failwith "Row vectors have inconsistent length" else
                     let m = rows.Length
-                    let n = rows.[0].Length
-                    let data = Array2D.init m n (fun i j -> rows.[i].[j]) 
+                    let n = rows[0].Length
+                    let data = Array2D.init m n (fun i j -> rows[i][j]) 
                     Matrix(data)
         
         static member Zerosmn m n =
@@ -187,24 +187,24 @@ module DataStructure =
             let n = diagonal.Length
             let d = Array2D.zeroCreate<float> n n
             for i in 0..n-1 do
-                d.[i, i] <- diagonal.[i]
+                d[i, i] <- diagonal[i]
             Matrix(d)
 
         static member CreateTridiagonal (subdiagonal: list<float>) (diagonal: list<float>) (superdiagonal: list<float>) =
             let n = diagonal.Length
             let d = Array2D.zeroCreate<float> n n
             for i in 0..n-2 do
-                d.[i+1, i] <- subdiagonal.[i]  
-                d.[i, i] <- diagonal.[i]  
-                d.[i, i+1] <- superdiagonal.[i]
-            d.[n-1, n-1] <- diagonal.[n-1]
+                d[i+1, i] <- subdiagonal[i]  
+                d[i, i] <- diagonal[i]  
+                d[i, i+1] <- superdiagonal[i]
+            d[n-1, n-1] <- diagonal[n-1]
             Matrix(d)
 
         /// Creates an identity matrix with ones on the diagonal.
         static member I(dim) =
             let eye = Array2D.zeroCreate dim dim
             for i in 0..dim-1 do
-                eye.[i, i] <- 1.
+                eye[i, i] <- 1.
             eye |> Matrix
 
         /// Creates an identity matrix with the possibility of extra (zero-padded) rows and columns.
@@ -214,7 +214,7 @@ module DataStructure =
                 raise <| invDimMsg $"Inconsistent dimensions, expected m and n greater than or equal to dim but (dim, m, n) = ({dim}, {m}, {n})"
             let eyeMn = Array2D.zeroCreate m n
             let eyeDim = Matrix.I dim
-            eyeMn.[..dim-1, ..dim-1] <- eyeDim.Data
+            eyeMn[..dim-1, ..dim-1] <- eyeDim.Data
             Matrix(eyeMn)
             
         /// Returns the length of the maximum dimension.
@@ -224,9 +224,9 @@ module DataStructure =
 
         member _.Item
             with get(row, column) =
-                data.[row, column]
+                data[row, column]
             and set(row, column) x =
-                data.[row, column] <- x
+                data[row, column] <- x
 
         member _.GetReverseIndex(dim: int, offset: int) = 
             data.GetReverseIndex(dim, offset)
@@ -238,7 +238,7 @@ module DataStructure =
                 defaultArg er (m-1),
                 defaultArg sc 0,
                 defaultArg ec (n-1)
-            data.[sr..er, sc..ec] |> Matrix
+            data[sr..er, sc..ec] |> Matrix
             
         member _.SetSlice(sr, er, sc, ec, x: Matrix) =
             let sr, er, sc, ec =
@@ -246,37 +246,37 @@ module DataStructure =
                 defaultArg er (m-1),
                 defaultArg sc 0,
                 defaultArg ec (n-1)
-            data.[sr..er, sc..ec] <- x.Data
+            data[sr..er, sc..ec] <- x.Data
 
         /// Row vector slices.
         member _.GetSlice(r, sc, ec) =
             let sc, ec =
                 defaultArg sc 0,
                 defaultArg ec (n-1)
-            data.[r, sc..ec] |> Vector
+            data[r, sc..ec] |> Vector
 
         member _.SetSlice(r, sc, ec, x: Vector) =
             let sc, ec =
                 defaultArg sc 0,
                 defaultArg ec (n-1)
-            data.[r, sc..ec] <- x.Data
+            data[r, sc..ec] <- x.Data
 
         /// Column vector slices.
         member _.GetSlice(sr, er, c) =
             let sr, er =
                 defaultArg sr 0,
                 defaultArg er (m-1)
-            data.[sr..er, c] |> Vector
+            data[sr..er, c] |> Vector
         
         member _.SetSlice(sr, er, c, x: Vector) =
             let sr, er =
                 defaultArg sr 0,
                 defaultArg er (m-1)
-            data.[sr..er, c] <- x.Data
+            data[sr..er, c] <- x.Data
 
-        member this.Rows = seq { for i in 0..m-1 -> this.[i, *].T }
+        member this.Rows = seq { for i in 0..m-1 -> this[i, *].T }
 
-        member this.Columns = seq { for i in 0..n-1 -> this.[*, i] }
+        member this.Columns = seq { for i in 0..n-1 -> this[*, i] }
 
         /// Transpose of the matrix.
         member this.T = this.Columns |> Seq.toList |> Matrix.FromRowVectors
@@ -300,7 +300,7 @@ module DataStructure =
         /// The diagonal of the matrix.
         member _.D =
             let d = min m n |> int
-            [| for i in 0..d-1 -> data.[i, i] |]
+            [| for i in 0..d-1 -> data[i, i] |]
             |> Vector
 
         /// The diagonal of the matrix, as a matrix.
@@ -308,28 +308,28 @@ module DataStructure =
             let d = min m n |> int
             let dd = Array2D.zeroCreate d d
             for i in 0..d-1 do
-                dd.[i, i] <- data.[i, i]
+                dd[i, i] <- data[i, i]
             Matrix dd
 
         /// Returns a clone matrix that is upper triangular (diagonal included).
         member this.UpperTriangular =
             let (A: Matrix) = this.Clone()
             A.Rows
-            |> Seq.mapi (fun i r -> r.[..i-1] <- Vector.zero i; r)
+            |> Seq.mapi (fun i r -> r[..i-1] <- Vector.zero i; r)
             |> Seq.toList
             |> Matrix.FromRowVectors
 
         member _.AsVector =
             if m = 1 then 
-                Vector(data.[0, *], isColumnVector=false)
+                Vector(data[0, *], isColumnVector=false)
             elif n = 1 then
-                Vector(data.[*, 0])
+                Vector(data[*, 0])
             else
                 raise invDim
 
         member this.IsScalar = this.IsSquare && m = 1
 
-        member this.AsScalar = if this.IsScalar then data.[0, 0] else raise invDim
+        member this.AsScalar = if this.IsScalar then data[0, 0] else raise invDim
 
         member _.IsSquare = m = n
 
@@ -374,7 +374,7 @@ module DataStructure =
                             |> List.collect (id)
                         List.concat [idxs; addIdx]
             allIdxs
-            |> List.forall (fun (i, j) -> isZero data.[i, j])
+            |> List.forall (fun (i, j) -> isZero data[i, j])
 
         /// Generalized check for tridiagonal matrices.
         /// Allows tall and wide matrices, surplus elements must be zero.
@@ -388,11 +388,11 @@ module DataStructure =
             let isTri = this.IsTridiagonal
             let (rShift, cShift) = if cu then (0, -1) else (-1, 0)
             let idxs = [for i in 1..n-1 -> (i + rShift, i + cShift)]
-            isTri && idxs |> List.forall (fun (i, j) -> isZero data.[i, j])
+            isTri && idxs |> List.forall (fun (i, j) -> isZero data[i, j])
 
         member this.IsDiagonal =
             let minDim = min n m
-            this.IsBidiagonal() && [for i in 0..minDim-2 -> isZero data.[i, i+1]] |> List.forall id
+            this.IsBidiagonal() && [for i in 0..minDim-2 -> isZero data[i, i+1]] |> List.forall id
 
         override _.ToString() = sprintf "%A" data
 
@@ -413,11 +413,11 @@ module DataStructure =
             if A.N <> B.M then
                 raise <| invDimMsg $"Inconsistent dimensions for matrix multiplication: {A.N} and {B.M}"
             else
-                Array2D.init A.M B.N (fun i j -> A.[i, *] *+ B.[*, j])
+                Array2D.init A.M B.N (fun i j -> A[i, *] *+ B[*, j])
                 |> Matrix
 
         static member (+) (A: Matrix, B: Matrix) =
-            Array2D.init A.M B.N (fun i j -> A.[i, j] + B.[i, j])
+            Array2D.init A.M B.N (fun i j -> A[i, j] + B[i, j])
             |> Matrix
 
         static member (-) (A: Matrix, B: Matrix) =
@@ -489,7 +489,7 @@ module DataStructure =
     /// The vectors are supplied in the order from smallest to largest.
     type HouseholderAccumulator(vs: List<Vector>, ?N: int) =
         let r = vs.Length
-        let n = if N.IsNone then vs.[^0].Length else N.Value
+        let n = if N.IsNone then vs[^0].Length else N.Value
 
         interface MatrixAccumulator with
 
@@ -497,7 +497,7 @@ module DataStructure =
             member _.Accumulate =
                 let Q = Matrix.I n
                 for j in 0..r-1 do
-                    let v = vs.[j]
+                    let v = vs[j]
                     let d = v.Length
-                    Q[^(d-1).., ^(d-1)..]  <- (Matrix.I d - 2.*v*v.T) * Q.[^(d-1).., ^(d-1)..]
+                    Q[^(d-1).., ^(d-1)..]  <- (Matrix.I d - 2.*v*v.T) * Q[^(d-1).., ^(d-1)..]
                 Q

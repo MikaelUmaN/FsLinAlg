@@ -3,6 +3,12 @@ Linear algebra for FSharp.
 
 **(Not in a useful state as of this commit)**
 
+## Build and Test
+
+```bash
+dotnet build FsLinAlg/FsLinAlg.fsproj --configuration Release --runtime linux-x64
+```
+
 ## Functionality
 - Matrix, vectors and basic operators
 

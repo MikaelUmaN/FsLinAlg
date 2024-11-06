@@ -187,7 +187,7 @@ module ExpectoFsCheck =
                     let (SquareMatrix A) = As
                     let B = Matrix.I A.M
                     for i in 1..B.M-2 do
-                        B.[i, i+1] <- A.[i, i+1]
+                        B[i, i+1] <- A[i, i+1]
                     return BidiagonalMatrix(B)
                 } }
 

@@ -3,21 +3,21 @@ namespace FsLinAlg
 [<AutoOpen>]
 module Eigenvalue =
 
-    /// Numerically stable computation of eigenvalue closer to T.[1, 1] from Trefethen, Bau p. 222
+    /// Numerically stable computation of eigenvalue closer to T[1, 1] from Trefethen, Bau p. 222
     /// [a(m-1) b(m-1)
     ///  b(m-1) a(m)]
     let wilkinsonShift (T: Matrix) =
-        let d = (T.[0, 0] - T.[1, 1]) / 2.
+        let d = (T[0, 0] - T[1, 1]) / 2.
         // If zero, arbitrarily set to one
         let ds = if d < 0. then -1. else 1.
-        T.[1, 1] - ds*T.[1, 0]**2. / (abs d + sqrt(d**2. + T.[1, 0]**2.))
+        T[1, 1] - ds*T[1, 0]**2. / (abs d + sqrt(d**2. + T[1, 0]**2.))
         
-    /// Finds eigenvalue of symmetric 2 by 2 matrix that is closer to T.[1, 1].
+    /// Finds eigenvalue of symmetric 2 by 2 matrix that is closer to T[1, 1].
     /// Uses characteristic polynomial
     let private symmetricEigenvalue (S: Matrix) =
-        let r1 = S.[1, 1] + S.[1, 0]
-        let r2 = S.[1, 1] - S.[1, 0]
-        if abs(r1 - S.[1, 1]) < abs(r2 - S.[1, 1]) then
+        let r1 = S[1, 1] + S[1, 0]
+        let r2 = S[1, 1] - S[1, 0]
+        if abs(r1 - S[1, 1]) < abs(r2 - S[1, 1]) then
             r1
         else
             r2
@@ -37,14 +37,14 @@ module Eigenvalue =
             let BV = B * V.T
 
             // Left-side givens rotation
-            let y = BV.[k, k]
-            let z = BV.[k+1, k]
+            let y = BV[k, k]
+            let z = BV[k+1, k]
             let Ut = givensMatrix m k (k+1) y z
             let UtBV = Ut * BV
 
             if k < n-2 then
-                let y = UtBV.[k, k+1]
-                let z = UtBV.[k, k+2]
+                let y = UtBV[k, k+1]
+                let z = UtBV[k, k+2]
                 inner UtBV y z (k+1) (Ut::Uts) (V.T::Vs)
             else
                 UtBV, (Ut::Uts), (V.T::Vs)
@@ -54,14 +54,14 @@ module Eigenvalue =
             if m = 2 && n = 2 then
                 B.T * B
             else
-                let t11 = B.[n-2, n-2]**2. + B.[n-3, n-2]**2.
-                let t = B.[n-2, n-2] * B.[n-2, n-1]
-                let t22 = B.[n-1, n-1]**2. + B.[n-2, n-1]**2.
+                let t11 = B[n-2, n-2]**2. + B[n-3, n-2]**2.
+                let t = B[n-2, n-2] * B[n-2, n-1]
+                let t22 = B[n-1, n-1]**2. + B[n-2, n-1]**2.
                 array2D [[ t11; t ]; [t; t22]]
                 |> Matrix
         let mu = wilkinsonShift T // Wilkinson shift is defined as the eigenvalue closer to t22.
-        let y = T.[0, 0] - mu
-        let z = T.[0, 1]
+        let y = T[0, 0] - mu
+        let z = T[0, 1]
 
         let UtBV, Uts, Vs = inner B y z 0 [] []
 
@@ -82,28 +82,28 @@ module Eigenvalue =
             // 1. Check for convergence.
             // Zero any superdiagonal element that is negligible compared to its closest diagonal elements.
             for i in 0..n-2 do
-                if insignificantComparedTo (abs(B.[i, i+1])) (abs(B.[i, i]) + abs(B.[i+1, i+1])) then
-                    B.[i, i+1] <- 0.
+                if insignificantComparedTo (abs(B[i, i+1])) (abs(B[i, i]) + abs(B[i+1, i+1])) then
+                    B[i, i+1] <- 0.
     
             // Find the largest diagonal from the bottom-right. Base case is a complete diagonal matrix,
             // in which case we are done.
-            let qOpt = ([n-2..-1..0] |> List.tryFind (fun i -> not (isZero B.[i, i+1])))
+            let qOpt = ([n-2..-1..0] |> List.tryFind (fun i -> not (isZero B[i, i+1])))
             let q = (if qOpt.IsSome then qOpt.Value + 1 else 0)
             if q = 0 then
                 B, Uts, Vs
             else
     
                 // Find the smallest diagonal from the top-left. Base case is a size zero matrix.
-                let pOpt = [0..q] |> List.tryFind (fun i -> not (isZero B.[i, i+1]))
+                let pOpt = [0..q] |> List.tryFind (fun i -> not (isZero B[i, i+1]))
                 let p = if pOpt.IsSome then pOpt.Value else 0
     
                 // B22 matrix. Must have non-zero superdiagonal.
                 // This is the matrix to perform work on.
-                let Bd = B.[p..q, p..q]
+                let Bd = B[p..q, p..q]
     
                 // 2. Detect decoupling.
                 // Zero any superdiagonal element if the diagonal element is zero.
-                let zeroDiagOpt = [0..Bd.N-1] |> List.tryFind (fun i -> isZero Bd.[i, i])
+                let zeroDiagOpt = [0..Bd.N-1] |> List.tryFind (fun i -> isZero Bd[i, i])
                 match zeroDiagOpt with
                 | Some(i) ->
                     // This addresses into B rather than Bd.
@@ -112,11 +112,11 @@ module Eigenvalue =
                     let Utd, Vd =
                         if i = Bd.N-1 then
                             let BG, Vd = zeroColumn B k
-                            B.[*, *] <- BG
+                            B[*, *] <- BG
                             None, Some(Vd)
                         else
                             let GB, Utd = zeroRow B k
-                            B.[*, *] <- GB
+                            B[*, *] <- GB
                             Some(Utd), None
                     let Utsn = if Utd.IsSome then (Utd.Value::Uts) else Uts
                     let Vsn = if Vd.IsSome then (Vd.Value::Vs) else Vs
@@ -130,37 +130,37 @@ module Eigenvalue =
                     else
                         // Diagonal element in the middle is zero
                         // Decouple into two separate problems.
-                        let B1, Uts1, Vs1 = SvdSteps B.[..k, ..k]
-                        let B2, Uts2, Vs2 = SvdSteps B.[k+1.., k+1..]
+                        let B1, Uts1, Vs1 = SvdSteps B[..k, ..k]
+                        let B2, Uts2, Vs2 = SvdSteps B[k+1.., k+1..]
     
                         // Overwrite B with solutions to subproblems.
-                        B.[..k, ..k] <- B1
-                        B.[k+1.., k+1..] <- B2
+                        B[..k, ..k] <- B1
+                        B[k+1.., k+1..] <- B2
     
                         // Reshape matrices U and V to full dimension.
                         let Uts1n = 
                             Uts1 
                             |> List.map (fun ut ->
                                 let Ut = Matrix.I n
-                                Ut.[..k, ..k] <- ut
+                                Ut[..k, ..k] <- ut
                                 Ut)
                         let Vs1n = 
                             Vs1 
                             |> List.map (fun v ->
                                 let V = Matrix.I n
-                                V.[..k, ..k] <- v
+                                V[..k, ..k] <- v
                                 V)
                         let Uts2n = 
                             Uts2 
                             |> List.map (fun ut ->
                                 let Ut = Matrix.I n
-                                Ut.[..k, ..k] <- ut
+                                Ut[..k, ..k] <- ut
                                 Ut)
                         let Vs2n = 
                             Vs2 
                             |> List.map (fun v ->
                                 let V = Matrix.I n
-                                V.[..k, ..k] <- v
+                                V[..k, ..k] <- v
                                 V)
     
                         // By convention, apply B1 first, then B2.
@@ -171,13 +171,13 @@ module Eigenvalue =
                         B, Utsnn, Vsnn
                 | None ->
                     let UtBV, Utd, Vd = SvdStep Bd
-                    B.[p..q, p..q] <- UtBV
+                    B[p..q, p..q] <- UtBV
     
                     // Reshape matrices U and V to full dimension.
                     let Ut = Matrix.I n
-                    Ut.[p..q, p..q] <- Utd
+                    Ut[p..q, p..q] <- Utd
                     let V = Matrix.I n
-                    V.[p..q, p..q] <- Vd
+                    V[p..q, p..q] <- Vd
     
                     // Recurse until convergence.
                     inner B (Ut::Uts) (V::Vs)
@@ -201,7 +201,7 @@ module Eigenvalue =
         let Vb = Va.Accumulate
 
         // Skip superflous zero rows, these do not contribute to singular values.
-        let Bb = Ba.[..n-1, ..n-1]
+        let Bb = Ba[..n-1, ..n-1]
 
         // Find singular values from bidiagonal matrix.
         let Db, Uts, Vs = SvdSteps Bb
@@ -223,9 +223,9 @@ module Eigenvalue =
 
         // Form full left and right singular vectors.
         let Utsnn = Matrix.I m
-        Utsnn.[..n-1, ..n-1] <- Utsn
+        Utsnn[..n-1, ..n-1] <- Utsn
         let Ut = Utsnn * Ub.T
-        let U = Ut.T.[*, ..n-1]
+        let U = Ut.T[*, ..n-1]
         let V = Vb * Vsn
 
         D, U, V
@@ -245,18 +245,18 @@ module Eigenvalue =
                 if k >= maxItr then
                     raise <| maxIter k
                 else
-                    let mu = wilkinsonShift Ap.[Ap.M-2.., Ap.M-2..]
+                    let mu = wilkinsonShift Ap[Ap.M-2.., Ap.M-2..]
                     let shift = mu * (Matrix.I Ap.M)
                     let Q, R = (Ap - shift).QR
                     let An = R*Q + shift
 
-                    let shouldDeflate = isZeroStrict An.[An.M-2, An.M-1]
+                    let shouldDeflate = isZeroStrict An[An.M-2, An.M-1]
                     if shouldDeflate then
                         if An.M = 2 then
-                            [An.[0, 0]; An.[1, 1]]
+                            [An[0, 0]; An[1, 1]]
                         else
-                            let A2e = [An.[An.M-1, An.M-1]]
-                            let A1 = An.[..An.M-2, ..An.M-2]
+                            let A2e = [An[An.M-1, An.M-1]]
+                            let A1 = An[..An.M-2, ..An.M-2]
                             let A1e = qr A1 0
                             [A1e; A2e] |> List.collect (id)
                     else
@@ -308,7 +308,7 @@ module Eigenvalue =
         let rec inner  (qn: Vector) (qnp: Vector) (betas: list<float>) (alphas: list<float>) n =
             let v = (A * qn).AsVector
             let an = (qn.T*v).AsScalar
-            let v = v - betas.[0]*qnp - an*qn
+            let v = v - betas[0]*qnp - an*qn
             let bn = v.Norm
             let qnn = v / bn
 

@@ -22,18 +22,23 @@ module SpecializedStructure =
     /// and another is that often for very sparse matrices they have a lower operation count.
     let givens n i k c s =
         if k <= i then
-            raise <| ArgumentException($"k must be strictly larger than i, but {i} >= {k}")
+            raise <| ArgumentException($"k must be strictly larger than i, but i={i} >= k={k}")
         else
             let G = Matrix.I n
-            G.[i, i] <- c
-            G.[k, k] <- c
-            G.[i, k] <- s
-            G.[k, i] <- -s
+            G[i, i] <- c
+            G[k, k] <- c
+            G[i, k] <- s
+            G[k, i] <- -s
             G
 
     /// Returns numbers (c, s) to be used in a Givens rotation matrix.
     /// asin s = theta
     /// acos c = theta
+    /// 
+    /// The numbers a and b are the elements of the vector to be rotated. 
+    /// Zeroing out an element at (2, 1) in a 3 by 3 matrix A, we would use a = A[1, 1] and b = A[2, 1].
+    /// The resulting matrix B = G * A will have a zero at (2, 1).
+    /// 
     /// Note: acos and asin use a different reference for the angle so the value will only be the same
     /// when they are in the first quadrant.
     /// Note: Does not follow Golub Van Loan 3rd Ed. Eq. 5.1.7, instead follows Wikipedia.
@@ -56,6 +61,13 @@ module SpecializedStructure =
     /// Returns a given rotation matrix.
     /// Note: Does not follow Golub Van Loan 3rd Ed. Eq. 5.1.7, instead follows Wikipedia.
     /// They are equivalent up to a transpose operation.
+    /// 
+    /// The (i, k) is the plane of rotation, with k > i and i, k being the rows affected in matrix multiplication.
+    /// 
+    /// The numbers a and b are the elements of the vector to be rotated. 
+    /// Zeroing out an element at (2, 1) in a 3 by 3 matrix A, we would use a = A[1, 1] and b = A[2, 1],
+    /// with (i, k) = (1, 2).
+    /// The resulting matrix B = G * A will have a zero at (2, 1).
     let givensMatrix n i k a b =
         let (c, s) = givensNumbers a b
         givens n i k c s
@@ -68,8 +80,8 @@ module SpecializedStructure =
     /// </returns>
     let zeroRow (B: Matrix) (i: int) =
         let GB, Us =
-            List.fold (fun (GB: Matrix, Us: List<Matrix>) k -> 
-                let U = givensMatrix B.N i k GB.[k, k] GB.[i, k] 
+            List.fold (fun (GB: Matrix, Us: list<Matrix>) k -> 
+                let U = givensMatrix B.N i k GB[k, k] GB[i, k] 
                 (U.T * GB, U::Us)) (B, []) [i+1..B.N-1]
 
         // Accumulate givens matrices (G1 * G2 * G3) and transpose to represent the operation:
@@ -87,8 +99,8 @@ module SpecializedStructure =
     /// </returns>
     let zeroColumn (B: Matrix) (k: int) =
         let BG, Vs =
-            List.fold (fun (BG: Matrix, Vs: List<Matrix>) i -> 
-                let V = givensMatrix B.N i k BG.[i, i] BG.[i, k] 
+            List.fold (fun (BG: Matrix, Vs: list<Matrix>) i -> 
+                let V = givensMatrix B.N i k BG[i, i] BG[i, k] 
                 (BG * V.T, V.T::Vs)) (B, []) [k-1..-1..0]
 
 

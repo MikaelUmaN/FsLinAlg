@@ -12,25 +12,25 @@ module Factorization =
         for k in 0..m-2 do
 
             // Pivoting
-            let i = (U.[k.., k] |> Vector.map abs |> Vector.findMaxIndex) + k
-            let up = U.[i, *]
-            U.[i, *] <- U.[k, *]
-            U.[k, *] <- up
+            let i = (U[k.., k] |> Vector.map abs |> Vector.findMaxIndex) + k
+            let up = U[i, *]
+            U[i, *] <- U[k, *]
+            U[k, *] <- up
 
-            let lp = L.[i, ..k-1]
-            L.[i, ..k-1] <- L.[k, ..k-1]
-            L.[k, ..k-1] <- lp
+            let lp = L[i, ..k-1]
+            L[i, ..k-1] <- L[k, ..k-1]
+            L[k, ..k-1] <- lp
 
-            let pp = P.[i, *]
-            P.[i, *] <- P.[k, *]
-            P.[k, *] <- pp
+            let pp = P[i, *]
+            P[i, *] <- P[k, *]
+            P[k, *] <- pp
 
             for j in k+1..m-1 do
-                if isZeroStrict U.[k, k] then
+                if isZeroStrict U[k, k] then
                      raise linDep
                 else
-                    L.[j, k] <- U.[j, k] / U.[k, k]
-                    U.[j, k..m-1] <- U.[j, k..m-1] - L.[j, k]*U.[k, k..m-1]
+                    L[j, k] <- U[j, k] / U[k, k]
+                    U[j, k..m-1] <- U[j, k..m-1] - L[j, k]*U[k, k..m-1]
         P, L, U
 
     let private QRinner(A: Matrix) =
@@ -39,8 +39,8 @@ module Factorization =
         let n = A.N
 
         let rec triangulate k uks =
-            let x = R.[k.., k]
-            let sn = signv x.[0]
+            let x = R[k.., k]
+            let sn = signv x[0]
             let vk = sn * x.Norm * Vector.e 0 x.Length + x
 
             // Forming R
@@ -48,7 +48,7 @@ module Factorization =
                 if not <| isZeroStrict vk.Norm then
                     let u = vk / vk.Norm
                     let q = 2.*u*u.T
-                    R.[k.., k..] <- R.[k.., k..] - q * R.[k.., k..]
+                    R[k.., k..] <- R[k.., k..] - q * R[k.., k..]
                     u
                 else
                     Vector.zero vk.Length
@@ -66,10 +66,10 @@ module Factorization =
 
         let R, uks = QRinner A
         let ruks = uks |> List.rev
-        let qb = List.fold (fun (x: Vector) (k, v: Vector) -> x.[k..] <- x.[k..] - 2.*v*(v.T *+ x.[k..]); x)
+        let qb = List.fold (fun (x: Vector) (k, v: Vector) -> x[k..] <- x[k..] - 2.*v*(v.T *+ x[k..]); x)
         
         let Qtb = qb b ruks
-        let Rr = R.[..n-1, ..n-1]
+        let Rr = R[..n-1, ..n-1]
         Qtb, Rr
 
     /// Reduced QR, Q m by n
@@ -78,14 +78,14 @@ module Factorization =
         let n = A.N
 
         let R, uks = QRinner A
-        let qx = List.fold (fun (x: Vector) (k, v: Vector) -> x.[k..] <- x.[k..] - 2.*v*(v.T *+ x.[k..]); x)
+        let qx = List.fold (fun (x: Vector) (k, v: Vector) -> x[k..] <- x[k..] - 2.*v*(v.T *+ x[k..]); x)
         let qks = 
             [for i in 0..n-1 -> 
                 let ei = Vector.e i m
                 qx ei uks]
         let Q = qks |> Matrix.FromColumnVectors
 
-        let Rr = R.[..n-1, ..n-1]
+        let Rr = R[..n-1, ..n-1]
         Q, Rr
 
     /// Reduction to Hessenberg form using two-sided Householder reflections.
@@ -102,17 +102,17 @@ module Factorization =
             H, []
         else
             let rec triangulate k uks =
-                let x = H.[k+1.., k]
-                let sn = signv x.[0]
+                let x = H[k+1.., k]
+                let sn = signv x[0]
                 let vt = x.Norm * Vector.e 0 x.Length + x
                 let vk = sn * vt
 
                 let uk = 
                     if not <| isZeroStrict vk.Norm then
                         let u = vk / vk.Norm
-                        H.[k+1.., k..] <- H.[k+1.., k..] - 2.*u*(u.T*H.[k+1.., k..]) // Householder refl applied on the left.
+                        H[k+1.., k..] <- H[k+1.., k..] - 2.*u*(u.T*H[k+1.., k..]) // Householder refl applied on the left.
                         let rs = if issym then k else 0
-                        H.[rs.., k+1..] <- H.[rs.., k+1..] - 2.*(H.[rs.., k+1..]*u)*u.T // Householder refl applied to the right.
+                        H[rs.., k+1..] <- H[rs.., k+1..] - 2.*(H[rs.., k+1..]*u)*u.T // Householder refl applied to the right.
                         u
                     else 
                         Vector.zero vk.Length
@@ -138,25 +138,25 @@ module Factorization =
 
             let rec bidiagonalize k uks vks =
                 // Introduce zeros in column k.
-                let x = B.[k.., k]
-                let sn = signv x.[0]
+                let x = B[k.., k]
+                let sn = signv x[0]
                 let ut = sn * x.Norm * Vector.e 0 x.Length + x
                 let uk = sn * ut
                 let ukn = uk / uk.Norm
 
                 // U' * A
-                B.[k.., k..] <- B.[k.., k..] - 2.*ukn*(ukn.T*B.[k.., k..])
+                B[k.., k..] <- B[k.., k..] - 2.*ukn*(ukn.T*B[k.., k..])
 
                 if k < n-2 then
                     // Introduce zeros in row k.
-                    let y = B.[k, k+1..]
-                    let sny = signv y.[0]
+                    let y = B[k, k+1..]
+                    let sny = signv y[0]
                     let vt = sny * y.Norm * Vector.e 0 y.Length + y
                     let vk = sny * vt
                     let vkn = vk / vk.Norm
 
                     // A * V
-                    B.[k.., k+1..] <- B.[k.., k+1..] - (B.[k.., k+1..]*2.*vkn)*vkn.T
+                    B[k.., k+1..] <- B[k.., k+1..] - (B[k.., k+1..]*2.*vkn)*vkn.T
 
                     bidiagonalize (k+1) (ukn::uks) (vkn::vks)
                 elif k < n-1 then
@@ -178,12 +178,12 @@ module Factorization =
 
         for k in 0..m-1 do
             for j in k+1..m-1 do
-                if isZeroStrict R.[k, k] then
+                if isZeroStrict R[k, k] then
                     raise notPosDef
-                R.[j, j..] <- R.[j, j..] - (R.[k, j]*R.[k, j..])/R.[k, k]
-            if R.[k, k] <= 0. || isZeroStrict R.[k, k] then
+                R[j, j..] <- R[j, j..] - (R[k, j]*R[k, j..])/R[k, k]
+            if R[k, k] <= 0. || isZeroStrict R[k, k] then
                 raise notPosDef
-            R.[k, k..] <- R.[k, k..]/sqrt(R.[k, k])   
+            R[k, k..] <- R[k, k..]/sqrt(R[k, k])   
         R
 
     type Matrix with

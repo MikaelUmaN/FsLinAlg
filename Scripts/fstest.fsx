@@ -1,3 +1,5 @@
+// Just tests for basic F# functionality.
+
 let arr = [| 3; 4; 2; 10 |]
 
 let d = 2

@@ -56,22 +56,22 @@ let r = uks.Length
 let j = r-1
 
 // backaccumulate, first householder vector -> matrix update.
-let u1 = uks.[j]
+let u1 = uks[j]
 
 // Because we norm the vector, we don't follow golub-kahan formula where they append back the 1.
-//let vu1 = Vector.concat [Vector.e 0 1; u1.[j..]]
+//let vu1 = Vector.concat [Vector.e 0 1; u1[j..]]
 // First update, lower right corner.
-Qu.[j.., j..] <- (Matrix.I (n-j) - 2.*u1*u1.T) * Qu.[j.., j..]
+Qu[j.., j..] <- (Matrix.I (n-j) - 2.*u1*u1.T) * Qu[j.., j..]
 
 // Next update, is a bigger corner.
 let j = r-2
-let u2 = uks.[j]
-Qu.[j.., j..] <- (Matrix.I (n-j) - 2.*u2*u2.T) * Qu.[j.., j..]
+let u2 = uks[j]
+Qu[j.., j..] <- (Matrix.I (n-j) - 2.*u2*u2.T) * Qu[j.., j..]
 
 // final update, last corner.
 let j = r-3
-let u3 = uks.[j]
-Qu.[j.., j..] <- (Matrix.I (n-j) - 2.*u3*u3.T) * Qu.[j.., j..]
+let u3 = uks[j]
+Qu[j.., j..] <- (Matrix.I (n-j) - 2.*u3*u3.T) * Qu[j.., j..]
 
 
 
@@ -91,15 +91,15 @@ let r = vks2.Length
 let j = r-1
 
 // backaccumulate, first householder vector -> matrix update.
-let v1 = vks2.[j]
+let v1 = vks2[j]
 
 // First update, lower right corner.
-Qv.[j.., j..] <- (Matrix.I (n-j) - 2.*v1*v1.T) * Qv.[j.., j..]
+Qv[j.., j..] <- (Matrix.I (n-j) - 2.*v1*v1.T) * Qv[j.., j..]
 
 // Next update is just a do nothing.
 let j = r-2
-let v2 = vks2.[j]
-Qv.[j.., j..]  <- (Matrix.I (n-j) - 2.*v2*v2.T) * Qv.[j.., j..]
+let v2 = vks2[j]
+Qv[j.., j..]  <- (Matrix.I (n-j) - 2.*v2*v2.T) * Qv[j.., j..]
 
 // Does it work...
 Qu.T * A * Qv
@@ -116,20 +116,20 @@ type HouseholderAccumulation(vs: List<Vector>, ?N: int) =
             raise <| ArgumentException($"vs must contain at least one vector but was empty")
 
     let r = vs.Length
-    let n = if N.IsNone then vs.[^0].Length else N.Value
+    let n = if N.IsNone then vs[^0].Length else N.Value
 
     /// Accumulates the vectors into the full matrix representation.
     member _.Accumulate =
         let Q = Matrix.I n
         for j in 0..r-1 do
-            let v = vs.[j]
-            Q.[^j+1.., ^j+1..]  <- (Matrix.I (j+2) - 2.*v*v.T) * Q.[^j+1.., ^j+1..]
+            let v = vs[j]
+            Q[^j+1.., ^j+1..]  <- (Matrix.I (j+2) - 2.*v*v.T) * Q[^j+1.., ^j+1..]
         Q
 
 let h = HouseholderAccumulation(ukst)
 let Qu = h.Accumulate
 
-let hv = HouseholderAccumulation(vkst, vkst.[^0].Length + 1)
+let hv = HouseholderAccumulation(vkst, vkst[^0].Length + 1)
 let Qv = hv.Accumulate
 
 // Does it work...
